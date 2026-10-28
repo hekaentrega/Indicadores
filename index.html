@@ -1230,9 +1230,69 @@ tbody td {
   .filters-bar input, .filters-bar select { min-width: 100%; }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ========== THEME TOGGLE ========== */
+.theme-toggle {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 9999;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  color: var(--neon-cyan);
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-neon);
+  transition: var(--transition);
+}
+.theme-toggle:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 28px rgba(255, 176, 32, 0.45);
+}
+.theme-toggle .icon-sun,
+.theme-toggle .icon-moon { position: absolute; transition: opacity 0.3s, transform 0.3s; }
+.theme-toggle .icon-sun { opacity: 0; transform: rotate(-90deg) scale(0.6); }
+.theme-toggle.light .icon-moon { opacity: 0; transform: rotate(90deg) scale(0.6); }
+.theme-toggle.light .icon-sun { opacity: 1; transform: rotate(0) scale(1); }
+
+/* ========== LIGHT THEME ========== */
+html[data-theme="light"] {
+  --bg-deep: #f7f3ea;
+  --bg-card: rgba(255, 252, 245, 0.82);
+  --glass: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(200, 140, 40, 0.28);
+  --text-primary: #1a1208;
+  --text-secondary: #5a4630;
+  --text-muted: rgba(90, 70, 40, 0.55);
+  --shadow-neon: 0 0 18px rgba(255, 160, 40, 0.15);
+}
+html[data-theme="light"] body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+}
+html[data-theme="light"] #starfield { opacity: 0.18; }
+html[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255, 200, 80, 0.18), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(255, 140, 40, 0.08), transparent 50%);
+}
+
 </style>
 </head>
 <body>
+
+<button class="theme-toggle" id="themeToggle" title="Cambiar tema" type="button">
+  <i class="fas fa-moon icon-moon"></i>
+  <i class="fas fa-sun icon-sun"></i>
+</button>
+
 
 <canvas id="starfield"></canvas>
 
@@ -2921,6 +2981,31 @@ function showToast(msg, type = "ok") {
 if (window.ChartDataLabels) {
   Chart.register(ChartDataLabels);
 }
+
+// ========== THEME TOGGLE ==========
+(function() {
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+  const root = document.documentElement;
+  const saved = localStorage.getItem("heka-theme") || "dark";
+  if (saved === "light") {
+    root.setAttribute("data-theme", "light");
+    btn.classList.add("light");
+  }
+  btn.addEventListener("click", () => {
+    const isLight = root.getAttribute("data-theme") === "light";
+    if (isLight) {
+      root.removeAttribute("data-theme");
+      btn.classList.remove("light");
+      localStorage.setItem("heka-theme", "dark");
+    } else {
+      root.setAttribute("data-theme", "light");
+      btn.classList.add("light");
+      localStorage.setItem("heka-theme", "light");
+    }
+  });
+})();
+
 </script>
 </body>
 </html>
