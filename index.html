@@ -1885,26 +1885,15 @@ function startSearch() {
   document.getElementById("searchOverlay").classList.add("hidden");
   showLoading();
   
-  // Detect if running inside Google Apps Script
-  if (false && typeof google !== "undefined" && google.script && google.script.run) {
-    google.script.run
-      .withSuccessHandler(onDataReceived)
-      .withFailureHandler(onDataError)
-      .obtenerDashboardData(cedula, inicio, fin);
-  } else {
-    // DEMO / MOCK MODE for local testing
-    setTimeout(() => {
-      const mock = generateMockData(cedula);
-      onDataReceived({
-        ok: true,
-        centro: "DEMO · Centro Costo Mock",
-        guias: mock,
-        totalOriginal: mock.length,
-        totalUnico: mock.length,
-        errores: []
-      });
-    }, 2600);
-  }
+  // Llamada real a Hostinger (reemplazo de obtenerDashboardData)
+  fetch("https://hekaintranet.com/INDICADORES/dashboard_indicadores-cliente.php?cedula=" + encodeURIComponent(cedula) + "&fechaInicio=" + encodeURIComponent(inicio) + "&fechaFin=" + encodeURIComponent(fin))
+    .then(r => r.json())
+    .then(data => {
+      onDataReceived(data);
+    })
+    .catch(err => {
+      onDataError(err);
+    });
 }
 
 function onDataReceived(res) {
