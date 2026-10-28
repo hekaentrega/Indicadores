@@ -1,0 +1,2937 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>HekaEntrega — Indicadores Cliente</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+/* ============================================================
+   HEKA DASHBOARD FUTURISTA v2 — CONSTELLATIONS + NEON GLASS
+   ============================================================ */
+:root {
+  --bg-deep: #0a0804;
+  --bg-card: rgba(28, 20, 10, 0.55);
+  --glass: rgba(32, 22, 8, 0.5);
+  --glass-border: rgba(255, 180, 40, 0.22);
+  /* Neón cálido: amarillo quemado / ámbar / dorado */
+  --neon-cyan: #ffb020;          /* principal: amarillo quemado neón */
+  --neon-magenta: #ff6b2d;       /* naranja vivo */
+  --neon-purple: #e8a838;        /* dorado */
+  --neon-green: #f0d060;         /* amarillo claro neón */
+  --neon-orange: #ff8c1a;        /* naranja quemado */
+  --text-primary: #fff5e0;
+  --text-secondary: #d4b888;
+  --text-muted: rgba(220, 190, 140, 0.5);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow-neon: 0 0 24px rgba(255, 176, 32, 0.2);
+  --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  overflow-x: hidden;
+}
+
+/* ========== SCROLLBARS FUTURISTAS (neón ámbar / dorado) ========== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 176, 32, 0.5) rgba(20, 12, 4, 0.65);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(20, 12, 4, 0.6);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 176, 32, 0.08);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 200, 50, 0.65), rgba(255, 120, 20, 0.55));
+  border-radius: 10px;
+  border: 1px solid rgba(255, 176, 32, 0.3);
+  box-shadow: 0 0 10px rgba(255, 176, 32, 0.3);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(255, 210, 60, 0.9), rgba(255, 140, 30, 0.8));
+  box-shadow: 0 0 14px rgba(255, 180, 40, 0.5);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.table-wrap::-webkit-scrollbar,
+#ciudadesExito::-webkit-scrollbar,
+#ciudadesBajo::-webkit-scrollbar,
+.modal-box::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* ========== CANVAS CONSTELLATIONS ========== */
+#starfield {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ========== OVERLAY GRADIENTS ========== */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(255, 160, 20, 0.1), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(255, 100, 30, 0.08), transparent 50%),
+    radial-gradient(ellipse 50% 30% at 50% 50%, rgba(255, 200, 50, 0.04), transparent 60%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ========== LAYOUT ========== */
+.app-shell {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== LOGIN / SEARCH OVERLAY ========== */
+#searchOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3, 5, 12, 0.85);
+  backdrop-filter: blur(12px);
+  transition: opacity 0.5s ease, visibility 0.5s;
+}
+
+#searchOverlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.search-card {
+  width: min(440px, 92vw);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 40px 36px;
+  box-shadow: 0 0 60px rgba(255, 176, 32, 0.12), inset 0 1px 0 rgba(255,255,255,0.05);
+  position: relative;
+  overflow: hidden;
+  animation: cardIn 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.search-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, transparent, rgba(255,176,32,0.08), transparent 30%);
+  animation: rotateGlow 12s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rotateGlow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.search-card h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 1.55rem;
+  letter-spacing: 0.04em;
+  background: linear-gradient(135deg, #ffb020, #e8a838);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+  position: relative;
+}
+
+.search-card .subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.form-group {
+  margin-bottom: 18px;
+  position: relative;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.form-group input {
+  width: 100%;
+  background: rgba(30, 18, 6, 0.65);
+  border: 1px solid rgba(255, 176, 32, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.form-group input:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 3px rgba(255, 176, 32, 0.15);
+}
+
+.btn-primary {
+  width: 100%;
+  margin-top: 10px;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #e89a20, #ff8c1a);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 0 20px rgba(255, 160, 30, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(255, 160, 30, 0.5);
+}
+
+.btn-primary:active { transform: translateY(0); }
+
+.btn-score {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 176, 32, 0.4);
+  background: rgba(255, 140, 26, 0.12);
+  color: #ffd080;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.25s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-score:hover {
+  background: rgba(255, 160, 30, 0.22);
+  box-shadow: 0 0 22px rgba(255, 160, 30, 0.25);
+  transform: translateY(-2px);
+  color: #ffe8b0;
+}
+
+.btn-score-sm {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 176, 32, 0.35);
+  background: rgba(255, 140, 26, 0.12);
+  color: #ffd080;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn-score-sm:hover {
+  background: rgba(255, 160, 30, 0.25);
+  box-shadow: 0 0 16px rgba(255, 160, 30, 0.3);
+  color: #fff;
+}
+
+.score-modal {
+  width: min(480px, 96vw) !important;
+}
+
+.score-modal .form-group input {
+  width: 100%;
+  background: rgba(30, 18, 6, 0.65);
+  border: 1px solid rgba(255, 176, 32, 0.25);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.score-modal .form-group input:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 3px rgba(255, 176, 32, 0.15);
+}
+
+.score-ring-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 8px 0 18px;
+}
+
+.score-ring {
+  width: 140px;
+  height: 140px;
+  position: relative;
+}
+
+.score-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.score-ring .score-track {
+  fill: none;
+  stroke: rgba(255, 176, 32, 0.12);
+  stroke-width: 8;
+}
+
+.score-ring .score-prog {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 339.3;
+  stroke-dashoffset: 339.3;
+  transition: stroke-dashoffset 0.8s ease;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.score-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.score-ring-center .val {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.score-ring-center .lvl {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.score-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.score-stat {
+  background: rgba(20, 12, 4, 0.55);
+  border: 1px solid rgba(255, 176, 32, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.score-stat .num {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+
+.score-stat .lbl {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.score-reco {
+  background: rgba(255, 176, 32, 0.08);
+  border: 1px solid rgba(255, 176, 32, 0.2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+
+.score-reco strong {
+  color: var(--neon-cyan);
+  display: block;
+  margin-bottom: 4px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+
+.btn-primary .shine {
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+  animation: shine 3s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0%, 100% { left: -100%; }
+  50% { left: 140%; }
+}
+
+/* ========== LOADING FUTURISTA HEKA ========== */
+#loadingOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 40%, rgba(255, 140, 20, 0.12), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 50% 80%, rgba(255, 80, 20, 0.08), transparent 50%),
+    rgba(8, 5, 2, 0.94);
+  backdrop-filter: blur(14px);
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+#loadingOverlay.show { display: flex; }
+
+#loadingOverlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 176, 32, 0.015) 2px,
+      rgba(255, 176, 32, 0.015) 4px
+    );
+  pointer-events: none;
+  animation: scanLines 8s linear infinite;
+}
+
+@keyframes scanLines {
+  from { background-position: 0 0; }
+  to { background-position: 0 100px; }
+}
+
+.loader-stage {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  max-width: 420px;
+  width: 92vw;
+  text-align: center;
+}
+
+.loader-logo-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-logo-wrap::before,
+.loader-logo-wrap::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.loader-logo-wrap::before {
+  inset: -8px;
+  border-top-color: rgba(255, 176, 32, 0.7);
+  border-right-color: rgba(255, 140, 26, 0.3);
+  animation: spinRing 2.2s linear infinite;
+}
+
+.loader-logo-wrap::after {
+  inset: -18px;
+  border-bottom-color: rgba(255, 120, 20, 0.5);
+  border-left-color: rgba(232, 168, 56, 0.25);
+  animation: spinRing 3.4s linear infinite reverse;
+}
+
+@keyframes spinRing {
+  to { transform: rotate(360deg); }
+}
+
+.loader-logo {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(255, 176, 32, 0.55));
+  animation: logoPulse 2s ease-in-out infinite;
+  border-radius: 16px;
+}
+
+@keyframes logoPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 14px rgba(255, 176, 32, 0.4)); }
+  50% { transform: scale(1.06); filter: drop-shadow(0 0 28px rgba(255, 176, 32, 0.75)); }
+}
+
+.loader-bot-wrap {
+  width: min(220px, 55vw);
+  height: min(160px, 40vw);
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 176, 32, 0.25);
+  background: rgba(20, 12, 4, 0.5);
+  box-shadow: 0 0 30px rgba(255, 140, 20, 0.15);
+}
+
+.loader-bot-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.loader-bot-wrap .bot-fallback {
+  display: none;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.loader-pct-block {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+}
+
+.loader-pct-display {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: clamp(2.4rem, 8vw, 3.4rem);
+  letter-spacing: 0.04em;
+  background: linear-gradient(135deg, #ffe08a, #ffb020, #ff8c1a, #ffe08a);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: pctShine 2.5s linear infinite;
+  line-height: 1.1;
+  text-shadow: none;
+  filter: drop-shadow(0 0 12px rgba(255, 176, 32, 0.35));
+}
+
+@keyframes pctShine {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.loader-pct-sub {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.loader-bar-track {
+  margin-top: 14px;
+  height: 6px;
+  width: 100%;
+  border-radius: 10px;
+  background: rgba(255, 176, 32, 0.1);
+  overflow: hidden;
+  border: 1px solid rgba(255, 176, 32, 0.15);
+  position: relative;
+}
+
+.loader-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #ff8c1a, #ffb020, #ffe08a, #ffb020);
+  background-size: 200% 100%;
+  animation: barFlow 1.5s linear infinite;
+  box-shadow: 0 0 12px rgba(255, 176, 32, 0.55);
+  transition: width 0.25s ease-out;
+}
+
+@keyframes barFlow {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.loader-msg {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  min-height: 1.3em;
+  margin-top: 4px;
+}
+
+.loader-msg .typed {
+  border-right: 2px solid rgba(255, 176, 32, 0.6);
+  padding-right: 2px;
+  animation: blinkCaret 0.9s step-end infinite;
+}
+
+@keyframes blinkCaret {
+  50% { border-color: transparent; }
+}
+
+.loader-brand {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: rgba(255, 176, 32, 0.55);
+  margin-top: 8px;
+}
+
+/* ========== DASHBOARD ========== */
+#dashboard {
+  display: none;
+  flex-direction: column;
+  padding: 20px 24px 60px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+  animation: fadeUp 0.6s ease;
+}
+
+#dashboard.visible { display: flex; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Header */
+.dash-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 18px 22px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-neon);
+}
+
+.dash-header .brand {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dash-header .meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-icon {
+  background: rgba(40, 24, 8, 0.55);
+  border: 1px solid rgba(255, 176, 32, 0.3);
+  color: var(--neon-cyan);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.btn-icon:hover {
+  background: rgba(255, 176, 32, 0.15);
+  box-shadow: 0 0 16px rgba(255, 176, 32, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Filters bar */
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 22px;
+  padding: 16px 18px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(12px);
+}
+
+.filters-bar .fg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filters-bar label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.filters-bar input,
+.filters-bar select {
+  background: rgba(25, 15, 5, 0.75);
+  border: 1px solid rgba(255, 176, 32, 0.22);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+  min-width: 130px;
+  transition: border-color 0.2s;
+}
+
+.filters-bar input:focus,
+.filters-bar select:focus {
+  border-color: var(--neon-cyan);
+}
+
+.btn-filter {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #d4921a, #c47810);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-filter:hover {
+  box-shadow: 0 0 18px rgba(255, 150, 20, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-reset {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 100, 100, 0.4);
+  background: transparent;
+  color: #ff8888;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reset:hover {
+  background: rgba(255, 80, 80, 0.15);
+}
+
+/* KPI Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.kpi-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  backdrop-filter: blur(14px);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+  animation: cardReveal 0.5s ease backwards;
+}
+
+.kpi-card:nth-child(1) { animation-delay: 0.05s; }
+.kpi-card:nth-child(2) { animation-delay: 0.1s; }
+.kpi-card:nth-child(3) { animation-delay: 0.15s; }
+.kpi-card:nth-child(4) { animation-delay: 0.2s; }
+.kpi-card:nth-child(5) { animation-delay: 0.25s; }
+.kpi-card:nth-child(6) { animation-delay: 0.3s; }
+
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(255, 176, 32, 0.12);
+  border-color: rgba(255, 176, 32, 0.35);
+}
+
+.kpi-card .icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.kpi-card .label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.kpi-card .value {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 1.45rem;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.kpi-card .sub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Charts */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+@media (max-width: 900px) {
+  .charts-grid { grid-template-columns: 1fr; }
+}
+
+.chart-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 18px;
+  backdrop-filter: blur(14px);
+  position: relative;
+  overflow: hidden;
+  animation: cardReveal 0.55s ease backwards;
+}
+
+.chart-card.full { grid-column: 1 / -1; }
+
+.chart-card h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--neon-cyan);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-card canvas {
+  max-height: 260px !important;
+}
+
+/* Table */
+.table-section {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 18px;
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+  animation: cardReveal 0.6s ease backwards;
+}
+
+.table-section h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--neon-cyan);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  max-height: 420px;
+  border-radius: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: rgba(28, 18, 6, 0.95);
+  color: var(--neon-cyan);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.68rem;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 176, 32, 0.2);
+  z-index: 2;
+}
+
+tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+tbody tr:hover {
+  background: rgba(255, 176, 32, 0.06);
+}
+
+tbody td {
+  padding: 9px 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.badge-ok { background: rgba(34, 255, 136, 0.15); color: #22ff88; }
+.badge-warn { background: rgba(255, 159, 28, 0.15); color: #ff9f1c; }
+.badge-err { background: rgba(255, 80, 120, 0.15); color: #ff5078; }
+.badge-info { background: rgba(255, 176, 32, 0.12); color: #ffb020; }
+
+/* Modal detalle */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(5, 3, 0, 0.82);
+  backdrop-filter: blur(10px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+  padding: 16px;
+}
+
+.modal-bg.show {
+  display: flex;
+  opacity: 1;
+}
+
+.modal-box {
+  width: min(560px, 96vw);
+  background:
+    linear-gradient(160deg, rgba(40, 26, 8, 0.97), rgba(18, 12, 4, 0.98));
+  border: 1px solid rgba(255, 176, 32, 0.28);
+  border-radius: 22px;
+  padding: 0;
+  box-shadow:
+    0 0 60px rgba(255, 160, 20, 0.18),
+    0 24px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 220, 140, 0.08);
+  transform: scale(0.94) translateY(12px);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 88vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.modal-bg.show .modal-box { transform: scale(1) translateY(0); }
+
+.modal-box::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #ff8c1a, #ffb020, #e8a838, #ff8c1a);
+  background-size: 200% 100%;
+  animation: shimmerBar 3s linear infinite;
+  border-radius: 22px 22px 0 0;
+  z-index: 2;
+}
+
+@keyframes shimmerBar {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.modal-header {
+  padding: 22px 24px 14px;
+  border-bottom: 1px solid rgba(255, 176, 32, 0.12);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.modal-header .modal-kicker {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.modal-box h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.15rem;
+  color: var(--neon-cyan);
+  margin: 0;
+  letter-spacing: 0.02em;
+  padding-right: 36px;
+  word-break: break-all;
+}
+
+.modal-header .modal-estado {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.modal-body {
+  padding: 16px 20px 22px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-section {
+  margin-bottom: 16px;
+}
+
+.modal-section:last-child { margin-bottom: 0; }
+
+.modal-section-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--neon-orange);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 140, 26, 0.35), transparent);
+}
+
+.modal-box .grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.modal-box .item {
+  background: rgba(20, 12, 4, 0.55);
+  border: 1px solid rgba(255, 176, 32, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.modal-box .item:hover {
+  border-color: rgba(255, 176, 32, 0.28);
+  background: rgba(40, 26, 8, 0.55);
+}
+
+.modal-box .item.full {
+  grid-column: 1 / -1;
+}
+
+.modal-box .item.highlight {
+  border-color: rgba(255, 176, 32, 0.35);
+  background: rgba(255, 160, 20, 0.08);
+}
+
+.modal-box .item label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 3px;
+}
+
+.modal-box .item span {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.modal-box .item.highlight span {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  color: var(--neon-cyan);
+  font-size: 0.95rem;
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 176, 32, 0.08);
+  border: 1px solid rgba(255, 176, 32, 0.2);
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 3;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  background: rgba(255, 100, 50, 0.2);
+  border-color: rgba(255, 100, 50, 0.4);
+  color: #ff9a6a;
+  transform: rotate(90deg);
+}
+
+@media (max-width: 480px) {
+  .modal-box .grid { grid-template-columns: 1fr; }
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 300;
+  background: rgba(10, 20, 40, 0.95);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 12px;
+  padding: 14px 20px;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  box-shadow: 0 0 24px rgba(255, 176, 32, 0.25);
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 340px;
+}
+
+.toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .dash-header { flex-direction: column; align-items: flex-start; }
+  .filters-bar { flex-direction: column; align-items: stretch; }
+  .filters-bar input, .filters-bar select { min-width: 100%; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+
+<!-- SEARCH OVERLAY -->
+<div id="searchOverlay">
+  <div class="search-card">
+    <h1>HEKA ENTREGA</h1>
+    <p class="subtitle">Dashboard de Indicadores · Análisis Inteligente</p>
+    
+    <div class="form-group">
+      <label>Cédula / Documento / Guía</label>
+      <input type="text" id="inputCedula" placeholder="Ej: 74378064" value="" />
+    </div>
+    <div class="form-group">
+      <label>Fecha Inicio</label>
+      <input type="date" id="inputInicio" />
+    </div>
+    <div class="form-group">
+      <label>Fecha Fin</label>
+      <input type="date" id="inputFin" />
+    </div>
+    
+    <button class="btn-primary" id="btnBuscar">
+      <span class="shine"></span>
+      ANALIZAR INDICADORES
+    </button>
+
+    <button class="btn-score" id="btnScoreHome" type="button">
+      <i class="fas fa-chart-line"></i> Score del Cliente
+    </button>
+    
+    <p style="margin-top:16px;font-size:0.72rem;color:var(--text-muted);text-align:center;">
+      Ingresa documento y rango de fechas para analizar
+    </p>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingOverlay">
+  <div class="loader-stage">
+    <div class="loader-logo-wrap">
+      <img class="loader-logo" id="loaderLogo"
+        src="https://i.imgur.com/3bxAAa2.png"
+        alt="Heka"
+        onerror="this.onerror=null;this.src='https://i.imgur.com/3bxAAa2.jpg'" />
+    </div>
+
+    <div class="loader-bot-wrap">
+      <video id="loaderBot" autoplay muted loop playsinline
+        src="https://raw.githubusercontent.com/Heka-Envios/Stock/main/imagenes/compressed-heka_bot%20(2)%20(1)%20(1).webm"
+        onerror="this.style.display='none'; var f=this.nextElementSibling; if(f) f.style.display='flex';">
+      </video>
+      <div class="bot-fallback">HEKA BOT</div>
+    </div>
+
+    <div class="loader-pct-block">
+      <div class="loader-pct-display" id="loaderPct">0.00%</div>
+      <div class="loader-pct-sub">sincronizando</div>
+      <div class="loader-bar-track">
+        <div class="loader-bar-fill" id="loaderBar"></div>
+      </div>
+    </div>
+
+    <div class="loader-msg"><span class="typed" id="loaderMsg">Iniciando sistemas…</span></div>
+    <div class="loader-brand">HEKA ENTREGA</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<main id="dashboard">
+  <header class="dash-header">
+    <div>
+      <div class="brand">HEKA · INDICADORES</div>
+      <div class="meta" id="headerMeta">—</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-score-sm" id="btnScoreDash" type="button" title="Score del Cliente">
+        <i class="fas fa-chart-line"></i> Score del Cliente
+      </button>
+      <button class="btn-icon" id="btnExport" title="Exportar Excel"><i class="fas fa-file-excel"></i></button>
+      <button class="btn-icon" id="btnEmail" title="Enviar por email"><i class="fas fa-envelope"></i></button>
+      <button class="btn-icon" id="btnNueva" title="Nueva búsqueda"><i class="fas fa-search"></i></button>
+    </div>
+  </header>
+
+  <!-- FILTROS -->
+  <div class="filters-bar">
+    <div class="fg">
+      <label>Desde</label>
+      <input type="date" id="filtroInicio" />
+    </div>
+    <div class="fg">
+      <label>Hasta</label>
+      <input type="date" id="filtroFin" />
+    </div>
+    <div class="fg">
+      <label>Transportadora</label>
+      <select id="filtroTrans"><option value="">Todas</option></select>
+    </div>
+    <div class="fg">
+      <label>Estado</label>
+      <select id="filtroEstado"><option value="">Todos</option></select>
+    </div>
+    <div class="fg" id="fgEstadoOriginal" style="display:none">
+      <label>Estado original (En Proceso)</label>
+      <select id="filtroEstadoOriginal"><option value="">Todos los de En Proceso</option></select>
+    </div>
+    <div class="fg">
+      <label>Tipo Pago</label>
+      <select id="filtroTipo"><option value="">Todos</option></select>
+    </div>
+    <div class="fg">
+      <label>Buscar guía</label>
+      <input type="text" id="filtroGuia" placeholder="N° guía..." />
+    </div>
+    <button class="btn-filter" id="btnAplicarFiltros"><i class="fas fa-filter"></i> Aplicar</button>
+    <button class="btn-reset" id="btnResetFiltros"><i class="fas fa-undo"></i> Reset</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpiGrid">
+    <!-- filled by JS -->
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3><i class="fas fa-truck"></i> Transportadoras</h3>
+      <canvas id="chartTrans"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3><i class="fas fa-chart-pie"></i> Estados</h3>
+      <canvas id="chartEstado"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3><i class="fas fa-map-marker-alt"></i> Top Ciudades Destino</h3>
+      <canvas id="chartCiudad"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3><i class="fas fa-calendar-alt"></i> Tendencia Diaria</h3>
+      <canvas id="chartTendencia"></canvas>
+    </div>
+    <div class="chart-card full">
+      <h3><i class="fas fa-coins"></i> Recaudo vs Costo Envío (últimos 15 días)</h3>
+      <canvas id="chartFinanzas"></canvas>
+    </div>
+  </div>
+
+  <!-- CIUDADES: más entregas exitosas / más devoluciones (por cantidad) -->
+  <div class="charts-grid" style="margin-bottom:22px">
+    <div class="chart-card">
+      <h3><i class="fas fa-trophy" style="color:#22ff88"></i> Ciudades con más Entregas Exitosas</h3>
+      <div id="ciudadesExito" style="font-size:0.85rem;max-height:280px;overflow-y:auto"></div>
+    </div>
+    <div class="chart-card">
+      <h3><i class="fas fa-undo" style="color:#ff5078"></i> Ciudades con más Devoluciones</h3>
+      <div id="ciudadesBajo" style="font-size:0.85rem;max-height:280px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-section">
+    <h3>
+      <span><i class="fas fa-list"></i> Guías (<span id="tableCount">0</span>)</span>
+      <span style="font-size:0.72rem;color:var(--text-muted)" id="tableInfo"></span>
+    </h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Guía</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Transportadora</th>
+            <th>Ciudad Dest.</th>
+            <th>Recaudo</th>
+            <th>Costo Envío</th>
+            <th>Tipo</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- MODAL DETALLE -->
+<div class="modal-bg" id="modalDetalle">
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose" aria-label="Cerrar">&times;</button>
+    <div class="modal-header">
+      <div class="modal-kicker">Detalle de guía</div>
+      <h2 id="modalTitle">—</h2>
+      <div id="modalEstadoBadge" class="modal-estado"></div>
+    </div>
+    <div class="modal-body" id="modalContent"></div>
+  </div>
+</div>
+
+<!-- MODAL EMAIL -->
+<div class="modal-bg" id="modalEmail">
+  <div class="modal-box" style="position:relative; max-width:420px">
+    <button class="modal-close" id="modalEmailClose">&times;</button>
+    <h2>Enviar reporte por email</h2>
+    <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:16px">
+      Se adjuntará el Excel con las guías filtradas actuales.
+    </p>
+    <div class="form-group">
+      <label>Correo destinatario</label>
+      <input type="email" id="emailDestino" placeholder="ejemplo@correo.com" style="width:100%;background:rgba(30,18,6,0.65);border:1px solid rgba(255,176,32,0.25);border-radius:8px;padding:12px;color:var(--text-primary);outline:none" />
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label>Asunto (opcional)</label>
+      <input type="text" id="emailAsunto" placeholder="Reporte Heka Indicadores" style="width:100%;background:rgba(30,18,6,0.65);border:1px solid rgba(255,176,32,0.25);border-radius:8px;padding:12px;color:var(--text-primary);outline:none" />
+    </div>
+    <button class="btn-primary" id="btnEnviarEmail" style="margin-top:18px">
+      <i class="fas fa-paper-plane"></i> ENVIAR REPORTE
+    </button>
+  </div>
+</div>
+
+<!-- MODAL SCORE DEL CLIENTE -->
+<div class="modal-bg" id="modalScore">
+  <div class="modal-box score-modal">
+    <button class="modal-close" id="modalScoreClose" aria-label="Cerrar">&times;</button>
+    <div class="modal-header">
+      <div class="modal-kicker">Inteligencia comercial</div>
+      <h2>Score del Cliente</h2>
+    </div>
+    <div class="modal-body">
+      <div id="scoreForm">
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:14px">
+          Ingresa el <strong>celular del destinatario</strong> (quien recibe el envío).
+          Analizamos todo su historial de envíos para decirte si conviene despachar y por qué.
+        </p>
+        <div class="form-group">
+          <label>Celular del destinatario</label>
+          <input type="text" id="scoreTelefono" placeholder="Ej: 3001234567" />
+        </div>
+        <button class="btn-primary" id="btnCalcularScore" style="margin-top:16px">
+          <i class="fas fa-bolt"></i> CALCULAR SCORE
+        </button>
+      </div>
+
+      <div id="scoreResult" style="display:none">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   CONSTELLATION STARFIELD
+   ============================================================ */
+(function initStarfield() {
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let w, h, stars = [], connections = [];
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const STAR_COUNT = Math.min(180, Math.floor((w * h) / 9000));
+  for (let i = 0; i < STAR_COUNT; i++) {
+    stars.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: Math.random() * 1.4 + 0.3,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: (Math.random() - 0.5) * 0.15,
+      alpha: Math.random() * 0.6 + 0.2,
+      pulse: Math.random() * Math.PI * 2
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    
+    // connections
+    for (let i = 0; i < stars.length; i++) {
+      for (let j = i + 1; j < stars.length; j++) {
+        const dx = stars[i].x - stars[j].x;
+        const dy = stars[i].y - stars[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 110) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(255, 160, 30, ${0.12 * (1 - dist / 110)})`;
+          ctx.lineWidth = 0.6;
+          ctx.moveTo(stars[i].x, stars[i].y);
+          ctx.lineTo(stars[j].x, stars[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // stars
+    stars.forEach(s => {
+      s.x += s.vx;
+      s.y += s.vy;
+      s.pulse += 0.02;
+      if (s.x < 0) s.x = w;
+      if (s.x > w) s.x = 0;
+      if (s.y < 0) s.y = h;
+      if (s.y > h) s.y = 0;
+
+      const a = s.alpha * (0.7 + 0.3 * Math.sin(s.pulse));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 230, 180, ${a})`;
+      ctx.fill();
+      
+      // glow
+      if (s.r > 1) {
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 160, 30, ${a * 0.15})`;
+        ctx.fill();
+      }
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ============================================================
+   STATE & DATA
+   ============================================================ */
+let rawGuias = [];          // all guides from server
+let filteredGuias = [];     // after client filters
+let charts = {};
+let currentCentro = "";
+
+/* ============================================================
+   HOMOLOGACIÓN DE ESTADOS — reglas exactas del negocio
+   
+   Categorías finales:
+     • Entrega Exitosa
+     • Devuelto al Remitente
+     • Para Reclamar en Oficina   ← categoría propia
+     • En Proceso
+   
+   ESTADOS_OMITIR → se eliminan por completo (no aparecen ni se cuentan).
+   Puedes seguir agregando más estados a las listas de abajo.
+   ============================================================ */
+
+/** Estados que se ELIMINAN / OCULTAN completamente */
+const ESTADOS_OMITIR = [
+  "Documento Anulado",
+  "ELIMINADA",
+  "Enviado",
+  "GENERADA",
+  // --- Agregar más aquí cuando se necesite ---
+];
+
+/** Variantes → "Entrega Exitosa" */
+const ESTADOS_ENTREGA_EXITOSA = [
+  "Entrega Exitosa",
+  "ENTREGADO",
+  "ENTREGADA",
+  "ENTREGADO_",
+  "ENTREGADA_",
+  // --- Agregar más variantes aquí ---
+];
+
+/** Variantes → "Devuelto al Remitente" */
+const ESTADOS_DEVUELTO = [
+  "Devuelto al Remitente",
+  "DEVUELTO",
+  "DEVUELTA",
+  "DEVUELTO_",
+  "DEVUELTA_",
+  // --- Agregar más variantes aquí ---
+];
+
+/** Variantes → "Para Reclamar en Oficina" (categoría propia, NO va en En Proceso) */
+const ESTADOS_RECLAMAR_OFICINA = [
+  "Para Reclamar en Oficina",
+  "PARA RECLAMAR EN OFICINA",
+  "Reclame en oficina",
+  "Reclamar en Oficina",
+  "Para reclamar en oficina",
+  // --- Agregar más variantes aquí ---
+];
+
+/** Normaliza para comparar (MAYÚSCULAS, sin tildes, sin _, espacios limpios) */
+function normalizarTextoEstado(raw) {
+  if (raw == null) return "";
+  return String(raw)
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/_/g, "")
+    .replace(/\s+/g, " ");
+}
+
+const _omitirSet   = new Set(ESTADOS_OMITIR.map(normalizarTextoEstado).filter(Boolean));
+const _exitoSet    = new Set(ESTADOS_ENTREGA_EXITOSA.map(normalizarTextoEstado).filter(Boolean));
+const _devueltoSet = new Set(ESTADOS_DEVUELTO.map(normalizarTextoEstado).filter(Boolean));
+const _oficinaSet  = new Set(ESTADOS_RECLAMAR_OFICINA.map(normalizarTextoEstado).filter(Boolean));
+
+/**
+ * @returns {"Entrega Exitosa"|"Devuelto al Remitente"|"Para Reclamar en Oficina"|"En Proceso"|null}
+ * null = omitir (no mostrar)
+ */
+function homologarEstado(raw) {
+  const n = normalizarTextoEstado(raw);
+  if (!n) return null;
+  if (_omitirSet.has(n)) return null;
+  if (_exitoSet.has(n)) return "Entrega Exitosa";
+  if (_devueltoSet.has(n)) return "Devuelto al Remitente";
+  if (_oficinaSet.has(n)) return "Para Reclamar en Oficina";
+  // Todo lo demás = En Proceso
+  return "En Proceso";
+}
+
+// Mock data for testing (when google.script not available)
+function generateMockData(cedula) {
+  // Estados crudos según reglas del negocio
+  const estadosRaw = [
+    "Entrega Exitosa", "ENTREGADO", "ENTREGADA", "ENTREGADO_", "ENTREGADA_",
+    "Devuelto al Remitente", "DEVUELTO", "DEVUELTA", "DEVUELTO_", "DEVUELTA_",
+    "En tránsito", "En bodega", "Despachado", "En distribución", "En ruta",
+    "Novedad", "Intento de entrega", "No localizado", "Para Reclamar en Oficina",
+    // Estos se omiten:
+    "Documento Anulado", "ELIMINADA", "Enviado", "GENERADA"
+  ];
+  const trans = ["Coordinadora", "Servientrega", "Interrapidisimo", "Envía", "TCC"];
+  const ciudades = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Bucaramanga", "Pereira", "Cartagena", "Manizales", "Ibagué", "Villavicencio"];
+  const tipos = ["PAGO CONTRAENTREGA", "CONVENCIONAL", "PAGO A DESTINO"];
+  const data = [];
+  const now = new Date();
+  
+  for (let i = 0; i < 140; i++) {
+    const daysAgo = Math.floor(Math.random() * 90);
+    const d = new Date(now);
+    d.setDate(d.getDate() - daysAgo);
+    
+    let estadoFinal = estadosRaw[Math.floor(Math.random() * estadosRaw.length)];
+    const recaudo = Math.floor(Math.random() * 250000) + 15000;
+    const flete = Math.floor(Math.random() * 18000) + 4500;
+    const ciudad = ciudades[Math.floor(Math.random() * ciudades.length)];
+    
+    // Simular más volumen de éxito en ciudades grandes
+    if (ciudad === "Bogotá" || ciudad === "Medellín") {
+      if (Math.random() < 0.55) estadoFinal = "ENTREGADO";
+    }
+    if (ciudad === "Villavicencio" || ciudad === "Ibagué") {
+      if (Math.random() < 0.30) estadoFinal = "DEVUELTO";
+    }
+    
+    data.push({
+      guiaTransportadora: "24" + String(100000000 + i * 137).slice(0, 9),
+      estado: estadoFinal,
+      numeroDocumento: cedula,
+      nombre: "Cliente Demo " + (i % 12),
+      empresa: "Empresa Test",
+      transportadora: trans[Math.floor(Math.random() * trans.length)],
+      tipo: tipos[Math.floor(Math.random() * tipos.length)],
+      alto: 10 + Math.floor(Math.random() * 40),
+      ancho: 10 + Math.floor(Math.random() * 30),
+      largo: 10 + Math.floor(Math.random() * 50),
+      peso: 0.5 + Math.random() * 8,
+      comisionHeka: Math.floor(Math.random() * 3000) + 500,
+      comisionTransportadora: Math.floor(Math.random() * 2000),
+      flete,
+      recaudo,
+      seguro: Math.floor(recaudo * 0.02),
+      total: recaudo + flete,
+      costoEnvio: flete, // mock: costo envío
+      costoDevolucion: /devol/i.test(estadoFinal) ? 3500 : 0,
+      comisionHekaAdicional: 0,
+      cobraDevolucion: /devol/i.test(estadoFinal) ? "SI" : "NO",
+      fecha: d.toLocaleDateString('es-CO'),
+      fechaISO: d.toISOString(),
+      nombreDest: "Destinatario " + (i % 20),
+      celularDestino: "3" + String(Math.floor(Math.random() * 1e9)).padStart(9, "0"),
+      ciudadRemitente: "Bogotá",
+      ciudadDestino: ciudad,
+      departamentoDestino: "Colombia",
+      direccion: "Calle " + (i % 100) + " # " + (i % 50),
+      contenido: "Producto demo",
+      tipoEntrega: Math.random() > 0.3 ? "Entrega en dirección" : "Reclame en oficina",
+      fuente: "MOCK"
+    });
+  }
+  return data;
+}
+
+/* ============================================================
+   DATE HELPERS (robust, timezone-safe)
+   ============================================================ */
+function toDateOnly(str) {
+  if (!str) return null;
+  // Accepts YYYY-MM-DD or DD/MM/YYYY or ISO
+  if (str.includes("T")) return str.split("T")[0];
+  if (str.includes("/")) {
+    const p = str.split("/");
+    if (p.length === 3) {
+      // assume DD/MM/YYYY
+      return `${p[2]}-${p[1].padStart(2,"0")}-${p[0].padStart(2,"0")}`;
+    }
+  }
+  return str.slice(0, 10);
+}
+
+function parseGuiaDate(g) {
+  if (g.fechaISO) return new Date(g.fechaISO);
+  if (g.fecha) {
+    const iso = toDateOnly(g.fecha);
+    if (iso) return new Date(iso + "T12:00:00");
+  }
+  return null;
+}
+
+/* Sin valores por defecto: el usuario elige cédula y fechas */
+function setDefaultDates() {
+  // Intencionalmente vacío — no precargar fechas ni documento
+}
+
+/* ============================================================
+   LOADING ANIMATION — futurista Heka
+   ============================================================ */
+let loadProgress = 0;
+let loadTimer = null;
+let loadMsgIdx = 0;
+
+const LOAD_MESSAGES = [
+  "Inicializando núcleo Heka…",
+  "Consultando documento…",
+  "Buscando envíos…",
+  "Sincronizando historial…",
+  "Organizando estados…",
+  "Calculando indicadores…",
+  "Ensamblando panel…",
+  "Preparando filtros…"
+];
+
+function showLoading() {
+  const overlay = document.getElementById("loadingOverlay");
+  overlay.classList.add("show");
+  loadProgress = 0;
+  loadMsgIdx = 0;
+  updateLoader(0, LOAD_MESSAGES[0]);
+
+  // Reiniciar video del bot
+  const bot = document.getElementById("loaderBot");
+  if (bot) {
+    try {
+      bot.currentTime = 0;
+      bot.play().catch(() => {});
+    } catch (e) {}
+  }
+
+  clearInterval(loadTimer);
+  // Progreso no lineal + decimales (sensación de sistema real)
+  loadTimer = setInterval(() => {
+    if (loadProgress >= 86) return;
+
+    let step;
+    if (loadProgress < 12) step = Math.random() * 2.8 + 1.4;
+    else if (loadProgress < 35) step = Math.random() * 3.6 + 0.9;
+    else if (loadProgress < 55) step = Math.random() * 2.2 + 0.5;
+    else if (loadProgress < 72) step = Math.random() * 1.4 + 0.25;
+    else step = Math.random() * 0.7 + 0.12;
+
+    // Micro-pausas ocasionales
+    if (Math.random() < 0.08) step *= 0.15;
+
+    loadProgress = Math.min(86, loadProgress + step);
+
+    // Mensaje según franja
+    const idx = Math.min(
+      LOAD_MESSAGES.length - 1,
+      Math.floor((loadProgress / 86) * LOAD_MESSAGES.length)
+    );
+    if (idx !== loadMsgIdx) loadMsgIdx = idx;
+
+    updateLoader(loadProgress, LOAD_MESSAGES[loadMsgIdx]);
+  }, 140);
+}
+
+function updateLoader(pct, msg) {
+  const safe = Math.max(0, Math.min(100, pct));
+  // Porcentaje con 2 decimales (único / técnico)
+  const pctEl = document.getElementById("loaderPct");
+  if (pctEl) {
+    pctEl.textContent = safe.toFixed(2) + "%";
+  }
+  const bar = document.getElementById("loaderBar");
+  if (bar) bar.style.width = safe + "%";
+
+  if (msg != null) {
+    const msgEl = document.getElementById("loaderMsg");
+    if (msgEl) msgEl.textContent = msg;
+  }
+}
+
+function hideLoading(cb) {
+  clearInterval(loadTimer);
+  let p = loadProgress;
+  const fin = setInterval(() => {
+    // Aceleración al final tipo “burst”
+    const remain = 100 - p;
+    p = Math.min(100, p + Math.max(remain * 0.18, 2.4) + Math.random() * 1.5);
+    updateLoader(p, p >= 99.5 ? "Panel listo ✓" : "Finalizando ensamblaje…");
+    if (p >= 100) {
+      clearInterval(fin);
+      updateLoader(100, "Panel listo ✓");
+      setTimeout(() => {
+        document.getElementById("loadingOverlay").classList.remove("show");
+        if (cb) cb();
+      }, 420);
+    }
+  }, 45);
+}
+
+/* ============================================================
+   SEARCH
+   ============================================================ */
+document.getElementById("btnBuscar").addEventListener("click", startSearch);
+document.getElementById("inputCedula").addEventListener("keydown", e => {
+  if (e.key === "Enter") startSearch();
+});
+
+function startSearch() {
+  const cedula = document.getElementById("inputCedula").value.trim();
+  const inicio = document.getElementById("inputInicio").value;
+  const fin = document.getElementById("inputFin").value;
+  
+  if (!cedula || !inicio || !fin) {
+    showToast("Completa cédula e intervalo de fechas", "warn");
+    return;
+  }
+  
+  // Sync filter dates
+  document.getElementById("filtroInicio").value = inicio;
+  document.getElementById("filtroFin").value = fin;
+
+  // Ocultar pantalla de búsqueda y mostrar loading de inmediato
+  document.getElementById("searchOverlay").classList.add("hidden");
+  showLoading();
+  
+  // Detect if running inside Google Apps Script
+  if (false && typeof google !== "undefined" && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(onDataReceived)
+      .withFailureHandler(onDataError)
+      .obtenerDashboardData(cedula, inicio, fin);
+  } else {
+    // DEMO / MOCK MODE for local testing
+    setTimeout(() => {
+      const mock = generateMockData(cedula);
+      onDataReceived({
+        ok: true,
+        centro: "DEMO · Centro Costo Mock",
+        guias: mock,
+        totalOriginal: mock.length,
+        totalUnico: mock.length,
+        errores: []
+      });
+    }, 2600);
+  }
+}
+
+function onDataReceived(res) {
+  hideLoading(() => {
+    if (!res || !res.ok) {
+      document.getElementById("searchOverlay").classList.remove("hidden");
+      showToast("Error al obtener datos" + (res && res.error ? ": " + res.error : ""), "error");
+      return;
+    }
+    
+    let omitidas = 0;
+    rawGuias = (res.guias || []).map(g => {
+      g._date = parseGuiaDate(g);
+      g._dateStr = g._date ? g._date.toISOString().slice(0,10) : "";
+      g.estadoOriginal = g.estado || "";
+      g.estadoHomologado = homologarEstado(g.estado);
+      return g;
+    }).filter(g => {
+      // Omitir estados basura / vacíos
+      if (g.estadoHomologado === null) {
+        omitidas++;
+        return false;
+      }
+      // Usamos el homologado como estado principal para filtros y KPIs
+      g.estado = g.estadoHomologado;
+      return true;
+    });
+    
+    currentCentro = res.centro || "—";
+    
+    document.getElementById("searchOverlay").classList.add("hidden");
+    document.getElementById("dashboard").classList.add("visible");
+    
+    document.getElementById("headerMeta").textContent = 
+      `Centro: ${currentCentro} · ${rawGuias.length} guías` +
+      "";
+    
+    populateFilterOptions();
+    applyClientFilters();
+    
+    if (res.errores && res.errores.length) {
+      showToast("Algunos datos no pudieron cargarse por completo. Revisa e intenta de nuevo.", "warn");
+    } else {
+      showToast(`Cargadas ${rawGuias.length} guías`, "ok");
+    }
+  });
+}
+
+function onDataError(err) {
+  hideLoading(() => {
+    document.getElementById("searchOverlay").classList.remove("hidden");
+    document.getElementById("dashboard").classList.remove("visible");
+    showToast("Error de conexión: " + (err.message || err), "error");
+  });
+}
+
+/* ============================================================
+   CLIENT-SIDE FILTERS (nunca fallan)
+   ============================================================ */
+function populateFilterOptions() {
+  const trans = new Set();
+  const estados = new Set();
+  const tipos = new Set();
+  const originalesEnProceso = new Set();
+  
+  // Categorías canónicas
+  const ordenEstado = ["Entrega Exitosa", "En Proceso", "Para Reclamar en Oficina", "Devuelto al Remitente"];
+  
+  rawGuias.forEach(g => {
+    if (g.transportadora) trans.add(g.transportadora);
+    if (g.estado) estados.add(g.estado);
+    if (g.tipo) tipos.add(g.tipo);
+    // Estados originales de las que están "En Proceso"
+    if (g.estado === "En Proceso" && g.estadoOriginal) {
+      originalesEnProceso.add(g.estadoOriginal);
+    }
+  });
+  
+  const estadosOrdenados = ordenEstado.filter(e => estados.has(e))
+    .concat([...estados].filter(e => !ordenEstado.includes(e)).sort());
+  
+  fillSelect("filtroTrans", [...trans].sort());
+  fillSelect("filtroEstado", estadosOrdenados);
+  fillSelect("filtroTipo", [...tipos].sort());
+  
+  // Llenar sub-filtro de estados originales (En Proceso)
+  const selOrig = document.getElementById("filtroEstadoOriginal");
+  const currentOrig = selOrig.value;
+  selOrig.innerHTML = '<option value="">Todos los de En Proceso</option>';
+  [...originalesEnProceso].sort().forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    selOrig.appendChild(opt);
+  });
+  if ([...originalesEnProceso].includes(currentOrig)) selOrig.value = currentOrig;
+  
+  // Mostrar/ocultar el sub-filtro según selección actual
+  toggleSubFiltroEstado();
+}
+
+function toggleSubFiltroEstado() {
+  const cat = document.getElementById("filtroEstado").value;
+  const fg = document.getElementById("fgEstadoOriginal");
+  if (cat === "En Proceso") {
+    fg.style.display = "";
+  } else {
+    fg.style.display = "none";
+    document.getElementById("filtroEstadoOriginal").value = "";
+  }
+}
+
+// Cuando cambia el select de Estado → mostrar sub-filtro si es "En Proceso"
+document.getElementById("filtroEstado").addEventListener("change", toggleSubFiltroEstado);
+
+function fillSelect(id, values) {
+  const sel = document.getElementById(id);
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todas</option>';
+  values.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  });
+  if (values.includes(current)) sel.value = current;
+}
+
+function applyClientFilters() {
+  const fIni = document.getElementById("filtroInicio").value;
+  const fFin = document.getElementById("filtroFin").value;
+  const fTrans = document.getElementById("filtroTrans").value;
+  const fEstado = document.getElementById("filtroEstado").value;
+  const fEstadoOrig = document.getElementById("filtroEstadoOriginal").value;
+  const fTipo = document.getElementById("filtroTipo").value;
+  const fGuia = document.getElementById("filtroGuia").value.trim().toLowerCase();
+  
+  filteredGuias = rawGuias.filter(g => {
+    // Date filter (string comparison YYYY-MM-DD — timezone safe)
+    if (fIni && g._dateStr && g._dateStr < fIni) return false;
+    if (fFin && g._dateStr && g._dateStr > fFin) return false;
+    
+    if (fTrans && g.transportadora !== fTrans) return false;
+    
+    // Categoría homologada
+    if (fEstado && g.estado !== fEstado) return false;
+    
+    // Si está filtrando "En Proceso" y eligió un estado original concreto
+    if (fEstado === "En Proceso" && fEstadoOrig) {
+      if ((g.estadoOriginal || "") !== fEstadoOrig) return false;
+    }
+    
+    if (fTipo && g.tipo !== fTipo) return false;
+    if (fGuia && !(g.guiaTransportadora || "").toLowerCase().includes(fGuia)) return false;
+    
+    return true;
+  });
+  
+  renderAll();
+}
+
+document.getElementById("btnAplicarFiltros").addEventListener("click", applyClientFilters);
+document.getElementById("btnResetFiltros").addEventListener("click", () => {
+  document.getElementById("filtroInicio").value = document.getElementById("inputInicio").value;
+  document.getElementById("filtroFin").value = document.getElementById("inputFin").value;
+  document.getElementById("filtroTrans").value = "";
+  document.getElementById("filtroEstado").value = "";
+  document.getElementById("filtroEstadoOriginal").value = "";
+  document.getElementById("filtroTipo").value = "";
+  document.getElementById("filtroGuia").value = "";
+  toggleSubFiltroEstado();
+  applyClientFilters();
+});
+
+// Live filter on guide search
+document.getElementById("filtroGuia").addEventListener("input", () => {
+  clearTimeout(window._guiaTimer);
+  window._guiaTimer = setTimeout(applyClientFilters, 280);
+});
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function renderAll() {
+  renderKPIs();
+  renderCharts();
+  renderCiudadesExito();
+  renderTable();
+}
+
+/**
+ * Ciudades con MÁS entregas exitosas y MÁS devoluciones (por cantidad absoluta).
+ * Una ciudad puede tener muchas devoluciones y aun así liderar en exitosas.
+ */
+function renderCiudadesExito() {
+  const guias = filteredGuias;
+  const cityMap = {}; // { ciudad: { total, exitosas, devueltas } }
+  
+  guias.forEach(g => {
+    const c = (g.ciudadDestino || "").trim() || "Sin ciudad";
+    if (!cityMap[c]) cityMap[c] = { total: 0, exitosas: 0, devueltas: 0 };
+    cityMap[c].total++;
+    if (g.estado === "Entrega Exitosa") cityMap[c].exitosas++;
+    if (g.estado === "Devuelto al Remitente") cityMap[c].devueltas++;
+  });
+  
+  const all = Object.entries(cityMap).map(([ciudad, v]) => ({
+    ciudad,
+    total: v.total,
+    exitosas: v.exitosas,
+    devueltas: v.devueltas,
+    tasaExito: v.total ? (v.exitosas / v.total) * 100 : 0,
+    tasaDev: v.total ? (v.devueltas / v.total) * 100 : 0
+  }));
+  
+  // Ranking por CANTIDAD de entregas exitosas (no por %)
+  const topExito = [...all]
+    .filter(r => r.exitosas > 0)
+    .sort((a, b) => b.exitosas - a.exitosas || b.tasaExito - a.tasaExito)
+    .slice(0, 10);
+  
+  // Ranking por CANTIDAD de devoluciones
+  const topDev = [...all]
+    .filter(r => r.devueltas > 0)
+    .sort((a, b) => b.devueltas - a.devueltas || b.tasaDev - a.tasaDev)
+    .slice(0, 10);
+  
+  const maxExito = topExito.length ? topExito[0].exitosas : 1;
+  const maxDev = topDev.length ? topDev[0].devueltas : 1;
+  
+  function rowExito(r) {
+    const barW = Math.min(100, (r.exitosas / maxExito) * 100).toFixed(0);
+    return `
+      <div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-weight:600;color:var(--text-primary)">${r.ciudad}</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:0.95rem;color:#22ff88">${r.exitosas}</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:#22ff88;border-radius:4px"></div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">
+          ${r.exitosas} exitosas de ${r.total} · tasa ${r.tasaExito.toFixed(1)}%
+          ${r.devueltas ? ` · ${r.devueltas} devoluciones` : ""}
+        </div>
+      </div>
+    `;
+  }
+  
+  function rowDev(r) {
+    const barW = Math.min(100, (r.devueltas / maxDev) * 100).toFixed(0);
+    return `
+      <div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-weight:600;color:var(--text-primary)">${r.ciudad}</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:0.95rem;color:#ff5078">${r.devueltas}</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:#ff5078;border-radius:4px"></div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">
+          ${r.devueltas} devoluciones de ${r.total} · tasa ${r.tasaDev.toFixed(1)}%
+          ${r.exitosas ? ` · ${r.exitosas} exitosas` : ""}
+        </div>
+      </div>
+    `;
+  }
+  
+  const elExito = document.getElementById("ciudadesExito");
+  const elBajo = document.getElementById("ciudadesBajo");
+  
+  elExito.innerHTML = topExito.length
+    ? topExito.map(rowExito).join("")
+    : '<p style="color:var(--text-muted)">Sin entregas exitosas en el filtro actual</p>';
+  
+  elBajo.innerHTML = topDev.length
+    ? topDev.map(rowDev).join("")
+    : '<p style="color:var(--text-muted)">Sin devoluciones en el filtro actual</p>';
+}
+
+function renderKPIs() {
+  const guias = filteredGuias;
+  const total = guias.length;
+  const exitosas = guias.filter(g => g.estado === "Entrega Exitosa").length;
+  const devueltas = guias.filter(g => g.estado === "Devuelto al Remitente").length;
+  const enProceso = guias.filter(g => g.estado === "En Proceso").length;
+  const enOficina = guias.filter(g => g.estado === "Para Reclamar en Oficina").length;
+  
+  const recaudo = guias.reduce((s, g) => s + (Number(g.recaudo) || 0), 0);
+  // Costo envío = total (fallback a flete si total viene vacío)
+  const fletes = guias.reduce((s, g) => s + getCostoEnvio(g), 0);
+  
+  const tasaExito = total ? ((exitosas / total) * 100).toFixed(1) : 0;
+  const tasaDev = total ? ((devueltas / total) * 100).toFixed(1) : 0;
+  
+  const kpis = [
+    { icon: "fa-box", color: "#ffb020", bg: "rgba(255,176,32,0.12)", label: "Total Guías", value: total.toLocaleString(), sub: "en el rango" },
+    { icon: "fa-check-circle", color: "#22ff88", bg: "rgba(34,255,136,0.12)", label: "Entrega Exitosa", value: exitosas.toLocaleString(), sub: tasaExito + "% tasa" },
+    { icon: "fa-spinner", color: "#e8a838", bg: "rgba(232,168,56,0.12)", label: "En Proceso", value: enProceso.toLocaleString(), sub: total ? ((enProceso/total)*100).toFixed(1) + "%" : "0%" },
+    { icon: "fa-building", color: "#ff9f1c", bg: "rgba(255,159,28,0.12)", label: "Reclamar en Oficina", value: enOficina.toLocaleString(), sub: total ? ((enOficina/total)*100).toFixed(1) + "%" : "0%" },
+    { icon: "fa-undo", color: "#ff5078", bg: "rgba(255,80,120,0.12)", label: "Devuelto al Remitente", value: devueltas.toLocaleString(), sub: tasaDev + "%" },
+    { icon: "fa-truck", color: "#e89a20", bg: "rgba(255,140,40,0.12)", label: "Fletes", value: "$" + formatMoney(fletes), sub: "Recaudo $" + formatMoney(recaudo) },
+  ];
+  
+  const grid = document.getElementById("kpiGrid");
+  grid.innerHTML = kpis.map((k, i) => `
+    <div class="kpi-card" style="animation-delay:${i*0.06}s">
+      <div class="icon" style="background:${k.bg};color:${k.color}"><i class="fas ${k.icon}"></i></div>
+      <div class="label">${k.label}</div>
+      <div class="value">${k.value}</div>
+      <div class="sub">${k.sub}</div>
+    </div>
+  `).join("");
+}
+
+function formatMoney(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+  return n.toLocaleString("es-CO");
+}
+
+/**
+ * Costo de envío / Fletes según fuente:
+ *  - API       → cost_return  (mapeado como costoEnvio)
+ *  - FIRESTORE → costo_envio  (mapeado como costoEnvio)
+ */
+function getCostoEnvio(g) {
+  if (g == null) return 0;
+  if (g.costoEnvio != null && g.costoEnvio !== "" && !isNaN(Number(g.costoEnvio))) {
+    return Number(g.costoEnvio) || 0;
+  }
+  if (g.fuente === "API") {
+    return Number(g.cobraDevolucion) || Number(g.cost_return) || 0;
+  }
+  if (g.fuente === "FIRESTORE") {
+    return Number(g.costo_envio) || Number(g.costoEnvio) || 0;
+  }
+  return Number(g.costoEnvio) || Number(g.flete) || Number(g.total) || 0;
+}
+
+function renderCharts() {
+  // Destroy previous
+  Object.values(charts).forEach(c => { if (c) c.destroy(); });
+  charts = {};
+  
+  const guias = filteredGuias;
+  
+  // --- Transportadoras ---
+  const transMap = {};
+  guias.forEach(g => {
+    const t = g.transportadora || "Sin dato";
+    transMap[t] = (transMap[t] || 0) + 1;
+  });
+  const transLabels = Object.keys(transMap).sort((a,b) => transMap[b] - transMap[a]);
+  const transData = transLabels.map(l => transMap[l]);
+  
+  charts.trans = new Chart(document.getElementById("chartTrans"), {
+    type: "doughnut",
+    data: {
+      labels: transLabels,
+      datasets: [{
+        data: transData,
+        backgroundColor: ["#ffb020","#e8a838","#22ff88","#ff9f1c","#ff5078","#e89a20","#c47810"],
+        borderWidth: 0,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { position: "right", labels: { color: "#d4b888", font: { size: 11 }, boxWidth: 12 } },
+        datalabels: { display: false }
+      },
+      animation: { animateRotate: true, duration: 900 }
+    }
+  });
+  
+  // --- Estados (ya homologados) ---
+  const estMap = {};
+  guias.forEach(g => {
+    const e = g.estado || "Sin estado";
+    estMap[e] = (estMap[e] || 0) + 1;
+  });
+  const ordenEst = ["Entrega Exitosa", "En Proceso", "Para Reclamar en Oficina", "Devuelto al Remitente"];
+  const estLabels = ordenEst.filter(e => estMap[e]).concat(
+    Object.keys(estMap).filter(e => !ordenEst.includes(e)).sort((a,b) => estMap[b]-estMap[a])
+  );
+  const estData = estLabels.map(l => estMap[l]);
+  const colorEstado = {
+    "Entrega Exitosa": "#22ff88",
+    "En Proceso": "#e8a838",
+    "Para Reclamar en Oficina": "#ff9f1c",
+    "Devuelto al Remitente": "#ff5078"
+  };
+  
+  charts.estado = new Chart(document.getElementById("chartEstado"), {
+    type: "bar",
+    data: {
+      labels: estLabels,
+      datasets: [{
+        data: estData,
+        backgroundColor: estLabels.map(l => colorEstado[l] || "#ffb020"),
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        datalabels: { display: false }
+      },
+      scales: {
+        x: { ticks: { color: "#d4b888" }, grid: { color: "rgba(255,176,32,0.06)" } },
+        y: { ticks: { color: "#d4b888", font: { size: 11 } }, grid: { display: false } }
+      },
+      animation: { duration: 800 }
+    }
+  });
+  
+  // --- Top Ciudades ---
+  const ciuMap = {};
+  guias.forEach(g => {
+    const c = g.ciudadDestino || "Sin ciudad";
+    ciuMap[c] = (ciuMap[c] || 0) + 1;
+  });
+  const ciuSorted = Object.entries(ciuMap).sort((a,b) => b[1] - a[1]).slice(0, 8);
+  
+  charts.ciudad = new Chart(document.getElementById("chartCiudad"), {
+    type: "bar",
+    data: {
+      labels: ciuSorted.map(e => e[0]),
+      datasets: [{
+        data: ciuSorted.map(e => e[1]),
+        backgroundColor: "rgba(255, 176, 32, 0.55)",
+        borderColor: "#ffb020",
+        borderWidth: 1,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: { ticks: { color: "#d4b888", maxRotation: 45 }, grid: { display: false } },
+        y: { ticks: { color: "#d4b888" }, grid: { color: "rgba(255,176,32,0.06)" } }
+      },
+      animation: { duration: 850 }
+    }
+  });
+  
+  // --- Tendencia diaria ---
+  const dayMap = {};
+  guias.forEach(g => {
+    if (!g._dateStr) return;
+    dayMap[g._dateStr] = (dayMap[g._dateStr] || 0) + 1;
+  });
+  const days = Object.keys(dayMap).sort();
+  
+  charts.tendencia = new Chart(document.getElementById("chartTendencia"), {
+    type: "line",
+    data: {
+      labels: days.map(d => d.slice(5)), // MM-DD
+      datasets: [{
+        label: "Guías",
+        data: days.map(d => dayMap[d]),
+        borderColor: "#ffb020",
+        backgroundColor: "rgba(255, 176, 32, 0.12)",
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointBackgroundColor: "#ffb020",
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: { ticks: { color: "#d4b888", maxTicksLimit: 12 }, grid: { display: false } },
+        y: { ticks: { color: "#d4b888" }, grid: { color: "rgba(255,176,32,0.06)" }, beginAtZero: true }
+      },
+      animation: { duration: 900 }
+    }
+  });
+  
+  // --- Finanzas (últimos 15 días con datos) ---
+  const finMap = {};
+  guias.forEach(g => {
+    if (!g._dateStr) return;
+    if (!finMap[g._dateStr]) finMap[g._dateStr] = { recaudo: 0, flete: 0 };
+    finMap[g._dateStr].recaudo += Number(g.recaudo) || 0;
+    finMap[g._dateStr].flete += getCostoEnvio(g);
+  });
+  const finDays = Object.keys(finMap).sort().slice(-15);
+  
+  charts.finanzas = new Chart(document.getElementById("chartFinanzas"), {
+    type: "bar",
+    data: {
+      labels: finDays.map(d => d.slice(5)),
+      datasets: [
+        {
+          label: "Recaudo",
+          data: finDays.map(d => finMap[d].recaudo),
+          backgroundColor: "rgba(34, 255, 136, 0.55)",
+          borderRadius: 4
+        },
+        {
+          label: "Costo Envío",
+          data: finDays.map(d => finMap[d].flete),
+          backgroundColor: "rgba(232, 168, 56, 0.55)",
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: "#d4b888" } },
+        datalabels: { display: false }
+      },
+      scales: {
+        x: { ticks: { color: "#d4b888" }, grid: { display: false } },
+        y: { ticks: { color: "#d4b888", callback: v => formatMoney(v) }, grid: { color: "rgba(255,176,32,0.06)" } }
+      },
+      animation: { duration: 900 }
+    }
+  });
+}
+
+function renderTable() {
+  const tbody = document.getElementById("tableBody");
+  const guias = filteredGuias.slice(0, 200); // safety limit for DOM
+  
+  document.getElementById("tableCount").textContent = filteredGuias.length;
+  document.getElementById("tableInfo").textContent = filteredGuias.length > 200 ? "Mostrando primeras 200" : "";
+  
+  tbody.innerHTML = guias.map((g, idx) => {
+    let badgeClass = "badge-info";
+    if (g.estado === "Entrega Exitosa") badgeClass = "badge-ok";
+    else if (g.estado === "Devuelto al Remitente") badgeClass = "badge-err";
+    else if (g.estado === "Para Reclamar en Oficina") badgeClass = "badge-warn";
+    else if (g.estado === "En Proceso") badgeClass = "badge-info";
+    
+    // En Proceso muestra el original
+    const labelEstado = g.estado === "En Proceso" && g.estadoOriginal
+      ? `${g.estado} · ${g.estadoOriginal}`
+      : (g.estado || "—");
+    
+    return `
+      <tr data-idx="${idx}">
+        <td style="color:var(--neon-cyan);font-weight:500">${g.guiaTransportadora || "—"}</td>
+        <td>${g.fecha || "—"}</td>
+        <td><span class="badge ${badgeClass}" title="${g.estadoOriginal || ''}">${labelEstado}</span></td>
+        <td>${g.transportadora || "—"}</td>
+        <td>${g.ciudadDestino || "—"}</td>
+        <td>$${(Number(g.recaudo)||0).toLocaleString("es-CO")}</td>
+        <td>$${getCostoEnvio(g).toLocaleString("es-CO")}</td>
+        <td>${g.tipo || "—"}</td>
+      </tr>
+    `;
+  }).join("");
+  
+  // Click handlers
+  tbody.querySelectorAll("tr").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const idx = +tr.dataset.idx;
+      showDetail(guias[idx]);
+    });
+  });
+}
+
+function showDetail(g) {
+  if (!g) return;
+  document.getElementById("modalTitle").textContent = g.guiaTransportadora || "Sin guía";
+
+  // Badge de estado
+  const badge = document.getElementById("modalEstadoBadge");
+  let badgeBg = "rgba(255,176,32,0.15)", badgeColor = "#ffb020";
+  if (g.estado === "Entrega Exitosa") { badgeBg = "rgba(34,255,136,0.15)"; badgeColor = "#22ff88"; }
+  else if (g.estado === "Devuelto al Remitente") { badgeBg = "rgba(255,80,120,0.15)"; badgeColor = "#ff5078"; }
+  else if (g.estado === "Para Reclamar en Oficina") { badgeBg = "rgba(255,159,28,0.18)"; badgeColor = "#ff9f1c"; }
+  else if (g.estado === "En Proceso") { badgeBg = "rgba(232,168,56,0.15)"; badgeColor = "#e8a838"; }
+  badge.style.background = badgeBg;
+  badge.style.color = badgeColor;
+  badge.textContent = g.estado || "—";
+  if (g.estado === "En Proceso" && g.estadoOriginal) {
+    badge.textContent = g.estado + " · " + g.estadoOriginal;
+  }
+
+  const money = n => "$" + (Number(n) || 0).toLocaleString("es-CO");
+  const item = (l, v, opts = {}) => {
+    const cls = ["item", opts.full ? "full" : "", opts.highlight ? "highlight" : ""].filter(Boolean).join(" ");
+    return `<div class="${cls}"><label>${l}</label><span>${v || "—"}</span></div>`;
+  };
+  const section = (title, icon, html) => `
+    <div class="modal-section">
+      <div class="modal-section-title"><i class="fas ${icon}"></i> ${title}</div>
+      <div class="grid">${html}</div>
+    </div>`;
+
+  document.getElementById("modalContent").innerHTML = [
+    section("Envío", "fa-truck", [
+      item("Fecha", g.fecha),
+      item("Transportadora", g.transportadora),
+      item("Tipo Pago", g.tipo),
+      item("Tipo Entrega", g.tipoEntrega),
+      item("Costo Envío", money(getCostoEnvio(g)), { highlight: true }),
+      item("Recaudo", money(g.recaudo), { highlight: true }),
+      item("Seguro", money(g.seguro)),
+      item("Peso", (g.peso || 0) + " kg"),
+    ].join("")),
+    section("Destinatario", "fa-user", [
+      item("Nombre", g.nombreDest),
+      item("Celular", g.celularDestino),
+      item("Ciudad", g.ciudadDestino),
+      item("Departamento", g.departamentoDestino),
+      item("Dirección", g.direccion, { full: true }),
+      item("Contenido", g.contenido, { full: true }),
+    ].join("")),
+    section("Remitente", "fa-store", [
+      item("Nombre", g.nombre),
+      item("Documento", g.numeroDocumento),
+      item("Empresa", g.empresa, { full: true }),
+    ].join("")),
+  ].join("");
+
+  document.getElementById("modalDetalle").classList.add("show");
+}
+
+document.getElementById("modalClose").addEventListener("click", () => {
+  document.getElementById("modalDetalle").classList.remove("show");
+});
+document.getElementById("modalDetalle").addEventListener("click", e => {
+  if (e.target.id === "modalDetalle") document.getElementById("modalDetalle").classList.remove("show");
+});
+
+/* ============================================================
+   EXPORT / EMAIL / NEW SEARCH
+   ============================================================ */
+document.getElementById("btnExport").addEventListener("click", () => {
+  if (!filteredGuias.length) {
+    showToast("No hay datos para exportar", "warn");
+    return;
+  }
+  const rows = filteredGuias.map(g => ({
+    Guía: g.guiaTransportadora,
+    Fecha: g.fecha,
+    "Estado homologado": g.estado,
+    "Estado original": g.estadoOriginal || "",
+    Transportadora: g.transportadora,
+    "Ciudad Destino": g.ciudadDestino,
+    Departamento: g.departamentoDestino,
+    Destinatario: g.nombreDest,
+    Celular: g.celularDestino,
+    Recaudo: g.recaudo,
+    "Costo Envío": getCostoEnvio(g),
+    Seguro: g.seguro,
+    "Tipo Pago": g.tipo,
+    "Tipo Entrega": g.tipoEntrega,
+    Peso: g.peso,
+    Contenido: g.contenido,
+    Remitente: g.nombre,
+    Documento: g.numeroDocumento,
+    Empresa: g.empresa
+  }));
+  
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Guías");
+  XLSX.writeFile(wb, `Heka_Indicadores_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast("Excel descargado", "ok");
+});
+
+document.getElementById("btnEmail").addEventListener("click", () => {
+  if (!filteredGuias.length) {
+    showToast("No hay datos filtrados para enviar", "warn");
+    return;
+  }
+  document.getElementById("emailDestino").value = "";
+  document.getElementById("emailAsunto").value = `Reporte Heka Indicadores — ${currentCentro || "Dashboard"}`;
+  document.getElementById("modalEmail").classList.add("show");
+});
+
+document.getElementById("modalEmailClose").addEventListener("click", () => {
+  document.getElementById("modalEmail").classList.remove("show");
+});
+document.getElementById("modalEmail").addEventListener("click", e => {
+  if (e.target.id === "modalEmail") document.getElementById("modalEmail").classList.remove("show");
+});
+
+document.getElementById("btnEnviarEmail").addEventListener("click", () => {
+  const recipient = document.getElementById("emailDestino").value.trim();
+  const subject = document.getElementById("emailAsunto").value.trim() || "Reporte Heka Indicadores";
+  
+  if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+    showToast("Ingresa un correo válido", "warn");
+    return;
+  }
+  
+  // Generar Excel en base64
+  const rows = filteredGuias.map(g => ({
+    Guía: g.guiaTransportadora,
+    Fecha: g.fecha,
+    "Estado homologado": g.estado,
+    "Estado original": g.estadoOriginal || "",
+    Transportadora: g.transportadora,
+    "Ciudad Destino": g.ciudadDestino,
+    Departamento: g.departamentoDestino,
+    Destinatario: g.nombreDest,
+    Celular: g.celularDestino,
+    Recaudo: g.recaudo,
+    "Costo Envío": getCostoEnvio(g),
+    Seguro: g.seguro,
+    "Tipo Pago": g.tipo,
+    "Tipo Entrega": g.tipoEntrega,
+    Peso: g.peso,
+    Contenido: g.contenido,
+    Remitente: g.nombre,
+    Documento: g.numeroDocumento,
+    Empresa: g.empresa
+  }));
+  
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Guías");
+  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+  const fileName = `Heka_Indicadores_${new Date().toISOString().slice(0,10)}.xlsx`;
+  
+  const body = `Hola,\n\nAdjunto el reporte de indicadores Heka con ${filteredGuias.length} guías.\nCentro: ${currentCentro}\nGenerado: ${new Date().toLocaleString("es-CO")}\n\n— Dashboard Heka Futurista`;
+  
+  const btn = document.getElementById("btnEnviarEmail");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+  
+  if (false && typeof google !== "undefined" && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(res => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> ENVIAR REPORTE';
+        document.getElementById("modalEmail").classList.remove("show");
+        if (res && res.status === "success") {
+          showToast("Correo enviado correctamente a " + recipient, "ok");
+        } else {
+          showToast((res && res.message) || "Error al enviar el correo", "error");
+        }
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> ENVIAR REPORTE';
+        showToast("Error: " + (err.message || err), "error");
+      })
+      .enviarReportePorEmail(recipient, subject, body, wbout, fileName);
+  } else {
+    // Mock / local
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> ENVIAR REPORTE';
+      document.getElementById("modalEmail").classList.remove("show");
+      showToast("Modo demo: el email solo funciona dentro de Google Apps Script", "info");
+    }, 800);
+  }
+});
+
+document.getElementById("btnNueva").addEventListener("click", () => {
+  document.getElementById("dashboard").classList.remove("visible");
+  document.getElementById("searchOverlay").classList.remove("hidden");
+  rawGuias = [];
+  filteredGuias = [];
+  Object.values(charts).forEach(c => { if (c) c.destroy(); });
+  charts = {};
+});
+
+/* ============================================================
+   SCORE DEL CLIENTE
+   ============================================================ */
+function openScoreModal() {
+  document.getElementById("scoreForm").style.display = "";
+  document.getElementById("scoreResult").style.display = "none";
+  document.getElementById("scoreResult").innerHTML = "";
+  document.getElementById("scoreTelefono").value = "";
+  document.getElementById("modalScore").classList.add("show");
+  setTimeout(() => document.getElementById("scoreTelefono").focus(), 200);
+}
+
+document.getElementById("btnScoreHome").addEventListener("click", openScoreModal);
+document.getElementById("btnScoreDash").addEventListener("click", openScoreModal);
+
+document.getElementById("modalScoreClose").addEventListener("click", () => {
+  document.getElementById("modalScore").classList.remove("show");
+});
+document.getElementById("modalScore").addEventListener("click", e => {
+  if (e.target.id === "modalScore") document.getElementById("modalScore").classList.remove("show");
+});
+
+document.getElementById("btnCalcularScore").addEventListener("click", calcularScoreCliente);
+document.getElementById("scoreTelefono").addEventListener("keydown", e => {
+  if (e.key === "Enter") calcularScoreCliente();
+});
+
+function buildScoreFromGuias(guias, tel, nombreClientePref) {
+  let exitosas = 0, devueltas = 0, enProceso = 0, oficina = 0;
+  const nombres = {};
+  (guias || []).forEach(g => {
+    const h = homologarEstado(g.estado); // mismas listas ESTADOS_* del index
+    if (h === null) return;
+    if (h === "Entrega Exitosa") exitosas++;
+    else if (h === "Devuelto al Remitente") devueltas++;
+    else if (h === "Para Reclamar en Oficina") oficina++;
+    else enProceso++;
+    const n = (g.nombreDest || "").trim();
+    if (n) nombres[n] = (nombres[n] || 0) + 1;
+  });
+
+  const total = exitosas + devueltas + enProceso + oficina;
+  const tasaExito = total ? (exitosas / total) * 100 : 0;
+  const tasaDev = total ? (devueltas / total) * 100 : 0;
+
+  let score = 0;
+  if (total > 0) {
+    const volBonus = Math.min(10, total * 0.4);
+    score = (tasaExito * 0.70) + ((100 - tasaDev) * 0.20) + volBonus * 0.5;
+    if (tasaDev >= 40) score -= 15;
+    else if (tasaDev >= 25) score -= 8;
+    if (tasaExito >= 85 && total >= 5) score += 5;
+    score = Math.max(0, Math.min(100, score));
+  }
+
+  let nivel = "Sin datos", color = "#94a3b8", decision = "SIN DATOS";
+  let recomendacion = "No encontramos envíos previos a este número. Es un destinatario nuevo: conviene confirmar teléfono, dirección y disponibilidad antes del primer envío.";
+
+  const te = Math.round(tasaExito * 10) / 10;
+  const td = Math.round(tasaDev * 10) / 10;
+
+  if (total > 0) {
+    if (score >= 85) {
+      nivel = "Excelente"; color = "#22ff88"; decision = "SÍ ENVIAR";
+      recomendacion = "Buena opción para enviar. De " + total + " envíos a este destinatario, " + exitosas + " fueron exitosos (" + te + "%). " +
+        (devueltas > 0 ? "Solo " + devueltas + " devolución(es) (" + td + "%). " : "Sin devoluciones registradas. ") +
+        "Historial sólido: puedes despachar con confianza, incluso contraentrega.";
+    } else if (score >= 70) {
+      nivel = "Bueno"; color = "#a3e635"; decision = "SÍ ENVIAR";
+      recomendacion = "Conviene enviar. Historial positivo: " + exitosas + " entregas exitosas de " + total + " (" + te + "%). " +
+        (devueltas > 0 ? "Hay " + devueltas + " devolución(es); no es alarmante, pero revisa que la dirección esté actualizada. " : "") +
+        "Recomendación: enviar con normalidad.";
+    } else if (score >= 50) {
+      nivel = "Regular"; color = "#ffb020"; decision = "ENVIAR CON PRECAUCIÓN";
+      recomendacion = "Opción intermedia. De " + total + " envíos, " + exitosas + " exitosos (" + te + "%) y " + devueltas + " devoluciones (" + td + "%). " +
+        "Sí puedes enviar, pero confirma el pedido por WhatsApp o llamada, valida la dirección y " +
+        (td >= 20 ? "evalúa no usar solo contraentrega. " : "mantén seguimiento cercano. ") +
+        (enProceso > 0 ? "Tiene " + enProceso + " envío(s) aún en proceso. " : "");
+    } else if (score >= 30) {
+      nivel = "Riesgo"; color = "#ff9f1c"; decision = "NO RECOMENDADO";
+      recomendacion = "No es buena opción enviar sin validar. Tasa de devolución " + td + "% (" + devueltas + " de " + total +
+        ") y solo " + te + "% de éxitos. Si decides enviar: confirma con el destinatario, exige pago anticipado o evita contraentrega, y verifica que la dirección y el celular sigan vigentes.";
+    } else {
+      nivel = "Alto riesgo"; color = "#ff5078"; decision = "NO ENVIAR";
+      recomendacion = "No conviene enviar a este número con las condiciones actuales. De " + total + " envíos, " + devueltas +
+        " terminaron en devolución (" + td + "%) y apenas " + exitosas + " fueron exitosos. Alto riesgo de pérdida de flete y mercancía. Mejor no despachar hasta confirmar identidad, dirección y forma de pago segura (preferible anticipado).";
+    }
+    if (total === 1) {
+      decision = score >= 50 ? "ENVIAR CON PRECAUCIÓN" : decision;
+      recomendacion = "Solo hay 1 envío previo a este destinatario. La muestra es muy pequeña para asegurar un patrón. " +
+        (exitosas === 1 ? "Ese envío fue exitoso, pero conviene confirmar datos antes de repetir. " :
+          devueltas === 1 ? "Ese único envío fue devolución: valida bien antes de volver a enviar. " : "Ese envío sigue en proceso. ") + recomendacion;
+    } else if (total === 2) {
+      recomendacion = "Solo 2 envíos en el historial: úsalo como referencia, no como certeza total. " + recomendacion;
+    }
+  }
+
+  const nombreTop = Object.entries(nombres).sort((a, b) => b[1] - a[1])[0];
+
+  return {
+    ok: true,
+    telefono: tel,
+    nombreCliente: nombreClientePref || (nombreTop ? nombreTop[0] : ""),
+    periodoLabel: "Todo el historial disponible",
+    totalEnvios: total,
+    exitosas, devueltas, enProceso, oficina,
+    tasaExito: te,
+    tasaDev: td,
+    score: Math.round(score * 10) / 10,
+    nivel, color, decision,
+    recomendacion
+  };
+}
+
+function calcularScoreCliente() {
+  const tel = document.getElementById("scoreTelefono").value.trim();
+
+  if (!tel || tel.replace(/\D/g, "").length < 7) {
+    showToast("Ingresa un teléfono válido (mín. 7 dígitos)", "warn");
+    return;
+  }
+
+  const btn = document.getElementById("btnCalcularScore");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analizando…';
+
+  const telNorm = tel.replace(/\D/g, "");
+
+  fetch("https://hekaintranet.com/INDICADORES/score_indicadores-cliente.php?telefono=" + encodeURIComponent(telNorm))
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-bolt"></i> CALCULAR SCORE';
+
+      if (!data || !data.ok) {
+        showToast((data && data.error) || "No se pudo calcular el score", "error");
+        return;
+      }
+
+      if (!data.guias || data.guias.length === 0) {
+        showToast("No se encontraron envíos para este teléfono", "warn");
+        return;
+      }
+
+      const scoreRes = buildScoreFromGuias(data.guias, data.telefono || tel, data.nombreCliente || "");
+      renderScoreResult(scoreRes);
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-bolt"></i> CALCULAR SCORE';
+      showToast("Error de conexión: " + err.message, "error");
+    });
+}
+
+function renderScoreResult(res) {
+  if (!res || !res.ok) {
+    showToast((res && res.error) || "No se pudo calcular el score", "error");
+    return;
+  }
+
+  document.getElementById("scoreForm").style.display = "none";
+  const el = document.getElementById("scoreResult");
+  el.style.display = "";
+
+  const circ = 2 * Math.PI * 54; // r=54
+  const offset = circ * (1 - (res.score || 0) / 100);
+
+  el.innerHTML = `
+    <div style="text-align:center;margin-bottom:6px">
+      <div style="font-size:0.75rem;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase">
+        ${res.nombreCliente ? res.nombreCliente : "Cliente"} · ${res.telefono}
+      </div>
+      <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">
+        ${res.periodoLabel || "Todo el historial disponible"}
+      </div>
+    </div>
+
+    <div class="score-ring-wrap">
+      <div class="score-ring">
+        <svg viewBox="0 0 120 120">
+          <circle class="score-track" cx="60" cy="60" r="54"/>
+          <circle class="score-prog" cx="60" cy="60" r="54"
+            style="stroke:${res.color};stroke-dashoffset:${offset}" />
+        </svg>
+        <div class="score-ring-center">
+          <div class="val" style="color:${res.color}">${res.score}</div>
+          <div class="lvl" style="color:${res.color}">${res.nivel}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="score-stats">
+      <div class="score-stat">
+        <div class="num">${res.totalEnvios}</div>
+        <div class="lbl">Envíos</div>
+      </div>
+      <div class="score-stat">
+        <div class="num" style="color:#22ff88">${res.exitosas}</div>
+        <div class="lbl">Exitosos · ${res.tasaExito}%</div>
+      </div>
+      <div class="score-stat">
+        <div class="num" style="color:#ff5078">${res.devueltas}</div>
+        <div class="lbl">Devoluciones · ${res.tasaDev}%</div>
+      </div>
+      <div class="score-stat">
+        <div class="num" style="color:#e8a838">${res.enProceso || 0}</div>
+        <div class="lbl">En proceso</div>
+      </div>
+    </div>
+
+    ${res.oficina ? `<div style="text-align:center;font-size:0.78rem;color:var(--text-muted);margin-bottom:10px">
+      Para reclamar en oficina: <strong style="color:#ff9f1c">${res.oficina}</strong>
+    </div>` : ""}
+
+    <div style="text-align:center;margin:4px 0 12px">
+      <span style="display:inline-block;padding:8px 16px;border-radius:20px;font-family:'Orbitron',sans-serif;font-size:0.78rem;font-weight:700;letter-spacing:0.06em;background:${res.color}22;color:${res.color};border:1px solid ${res.color}55">
+        ${res.decision || res.nivel || "—"}
+      </span>
+    </div>
+
+    <div class="score-reco">
+      <strong>¿Conviene enviar? · Análisis</strong>
+      ${res.recomendacion}
+    </div>
+
+    <button class="btn-score" id="btnScoreOtra" type="button" style="margin-top:4px">
+      <i class="fas fa-search"></i> Consultar otro teléfono
+    </button>
+  `;
+
+  document.getElementById("btnScoreOtra").addEventListener("click", () => {
+    document.getElementById("scoreForm").style.display = "";
+    document.getElementById("scoreResult").style.display = "none";
+    document.getElementById("scoreTelefono").focus();
+  });
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+function showToast(msg, type = "ok") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.borderColor = type === "error" ? "#ff5078" : type === "warn" ? "#ff9f1c" : "#ffb020";
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 3800);
+}
+
+// Register datalabels (optional)
+if (window.ChartDataLabels) {
+  Chart.register(ChartDataLabels);
+}
+</script>
+</body>
+</html>
