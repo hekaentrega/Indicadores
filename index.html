@@ -2322,7 +2322,7 @@ const _omitirSet   = new Set(ESTADOS_OMITIR.map(normalizarTextoEstado).filter(Bo
 const _exitoSet    = new Set(ESTADOS_ENTREGA_EXITOSA.map(normalizarTextoEstado).filter(Boolean));
 const _devueltoSet = new Set(ESTADOS_DEVUELTO.map(normalizarTextoEstado).filter(Boolean));
 const _oficinaSet  = new Set(ESTADOS_RECLAMAR_OFICINA.map(normalizarTextoEstado).filter(Boolean));
-const _oficinaSet  = new Set(ESTADOS_INDEMNIZACION.map(normalizarTextoEstado).filter(Boolean));   
+const _indemnizacionSet  = new Set(ESTADOS_INDEMNIZACION.map(normalizarTextoEstado).filter(Boolean));   
 
 /**
  * @returns {"Entrega Exitosa"|"Devuelto al Remitente"|"Para Reclamar en Oficina"|"En Proceso"|null}
