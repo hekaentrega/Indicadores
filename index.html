@@ -2247,12 +2247,6 @@ const ESTADOS_OMITIR = [
   "ELIMINADA",
   "Enviado",
   "GENERADA",
-  "ANULADA",
-  "ANULADO",
-  "ANULADA_",
-  "ANULADO_",
-  "annulled",
-  "progress", 
   // --- Agregar más aquí cuando se necesite ---
 ];
 
@@ -2263,11 +2257,6 @@ const ESTADOS_ENTREGA_EXITOSA = [
   "ENTREGADA",
   "ENTREGADO_",
   "ENTREGADA_",
-  "Entregada",
-  "Entregado",
-  "ENTREGADA DIGITALIZADA",
-  "ENTREGADA DIGITALIZADA LA JAGUA",
-  "ENTREGADA DIGITALIZADA SAN", 
   // --- Agregar más variantes aquí ---
 ];
 
@@ -2278,10 +2267,6 @@ const ESTADOS_DEVUELTO = [
   "DEVUELTA",
   "DEVUELTO_",
   "DEVUELTA_",
-  "Devolución ratificada",
-  "Devolucion ratificada",
-  "ENTREGADO A REMITENTE",
-  "CERRADO POR INCIDENCIA, VER CAUSA",  
   // --- Agregar más variantes aquí ---
 ];
 
@@ -2295,16 +2280,19 @@ const ESTADOS_RECLAMAR_OFICINA = [
   // --- Agregar más variantes aquí ---
 ];
 
-/** Variantes → "Para Reclamar en Oficina" (categoría propia, NO va en En Proceso) */
+/** Variantes → "Indemnización" (categoría propia) */
 const ESTADOS_INDEMNIZACION = [
+  "Indemnización",
   "INDEMNIZADA_",
   "INDEMNIZADO_",
   "indemnizada_",
   "indemnizado_",
   "Indemnizada_",
-  "Indemnizado_", 
+  "Indemnizado_",
+  "INDEMNIZADA",
+  "INDEMNIZADO",
   // --- Agregar más variantes aquí ---
-];   
+];
 
 /** Normaliza para comparar (MAYÚSCULAS, sin tildes, sin _, espacios limpios) */
 function normalizarTextoEstado(raw) {
@@ -2322,10 +2310,10 @@ const _omitirSet   = new Set(ESTADOS_OMITIR.map(normalizarTextoEstado).filter(Bo
 const _exitoSet    = new Set(ESTADOS_ENTREGA_EXITOSA.map(normalizarTextoEstado).filter(Boolean));
 const _devueltoSet = new Set(ESTADOS_DEVUELTO.map(normalizarTextoEstado).filter(Boolean));
 const _oficinaSet  = new Set(ESTADOS_RECLAMAR_OFICINA.map(normalizarTextoEstado).filter(Boolean));
-const _indemnizacionSet  = new Set(ESTADOS_INDEMNIZACION.map(normalizarTextoEstado).filter(Boolean));   
+const _indemnizacionSet = new Set(ESTADOS_INDEMNIZACION.map(normalizarTextoEstado).filter(Boolean));
 
 /**
- * @returns {"Entrega Exitosa"|"Devuelto al Remitente"|"Para Reclamar en Oficina"|"En Proceso"|null}
+ * @returns {"Entrega Exitosa"|"Devuelto al Remitente"|"Para Reclamar en Oficina"|"Indemnización"|"En Proceso"|null}
  * null = omitir (no mostrar)
  */
 function homologarEstado(raw) {
@@ -2335,6 +2323,7 @@ function homologarEstado(raw) {
   if (_exitoSet.has(n)) return "Entrega Exitosa";
   if (_devueltoSet.has(n)) return "Devuelto al Remitente";
   if (_oficinaSet.has(n)) return "Para Reclamar en Oficina";
+  if (_indemnizacionSet.has(n)) return "Indemnización";
   // Todo lo demás = En Proceso
   return "En Proceso";
 }
@@ -2747,7 +2736,7 @@ function populateFilterOptions() {
   const originalesEnProceso = new Set();
   
   // Categorías canónicas
-  const ordenEstado = ["Entrega Exitosa", "En Proceso", "Para Reclamar en Oficina", "Devuelto al Remitente"];
+  const ordenEstado = ["Entrega Exitosa", "En Proceso", "Para Reclamar en Oficina", "Indemnización", "Devuelto al Remitente"];
   
   rawGuias.forEach(g => {
     if (g.transportadora) trans.add(g.transportadora);
@@ -3065,7 +3054,7 @@ function renderCharts() {
     const e = g.estado || "Sin estado";
     estMap[e] = (estMap[e] || 0) + 1;
   });
-  const ordenEst = ["Entrega Exitosa", "En Proceso", "Para Reclamar en Oficina", "Devuelto al Remitente"];
+  const ordenEst = ["Entrega Exitosa", "En Proceso", "Para Reclamar en Oficina", "Indemnización", "Devuelto al Remitente"];
   const estLabels = ordenEst.filter(e => estMap[e]).concat(
     Object.keys(estMap).filter(e => !ordenEst.includes(e)).sort((a,b) => estMap[b]-estMap[a])
   );
@@ -3074,6 +3063,7 @@ function renderCharts() {
     "Entrega Exitosa": "#22ff88",
     "En Proceso": "#e8a838",
     "Para Reclamar en Oficina": "#ff9f1c",
+    "Indemnización": "#a855f7",
     "Devuelto al Remitente": "#ff5078"
   };
   
@@ -3225,6 +3215,7 @@ function renderTable() {
     if (g.estado === "Entrega Exitosa") badgeClass = "badge-ok";
     else if (g.estado === "Devuelto al Remitente") badgeClass = "badge-err";
     else if (g.estado === "Para Reclamar en Oficina") badgeClass = "badge-warn";
+    else if (g.estado === "Indemnización") badgeClass = "badge-purple";
     else if (g.estado === "En Proceso") badgeClass = "badge-info";
     
     // En Proceso muestra el original
@@ -3483,7 +3474,7 @@ document.getElementById("scoreTelefono").addEventListener("keydown", e => {
 });
 
 function buildScoreFromGuias(guias, tel, nombreClientePref) {
-  let exitosas = 0, devueltas = 0, enProceso = 0, oficina = 0;
+  let exitosas = 0, devueltas = 0, enProceso = 0, oficina = 0, indemnizacion = 0;
   const nombres = {};
   (guias || []).forEach(g => {
     const h = homologarEstado(g.estado); // mismas listas ESTADOS_* del index
@@ -3491,12 +3482,13 @@ function buildScoreFromGuias(guias, tel, nombreClientePref) {
     if (h === "Entrega Exitosa") exitosas++;
     else if (h === "Devuelto al Remitente") devueltas++;
     else if (h === "Para Reclamar en Oficina") oficina++;
+    else if (h === "Indemnización") indemnizacion++;
     else enProceso++;
     const n = (g.nombreDest || "").trim();
     if (n) nombres[n] = (nombres[n] || 0) + 1;
   });
 
-  const total = exitosas + devueltas + enProceso + oficina;
+  const total = exitosas + devueltas + enProceso + oficina + indemnizacion;
   const tasaExito = total ? (exitosas / total) * 100 : 0;
   const tasaDev = total ? (devueltas / total) * 100 : 0;
 
