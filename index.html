@@ -1834,6 +1834,31 @@ html[data-theme="light"] .toast.warn {
   .corner-logo { height: 38px; top: 12px; left: 14px; }
 }
 
+
+/* Detalle de guía en modo claro */
+html[data-theme="light"] .modal-box .item {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: #1a1208 !important;
+}
+html[data-theme="light"] .modal-box .item:hover {
+  background: rgba(255, 248, 235, 0.95) !important;
+  border-color: rgba(220, 150, 40, 0.35) !important;
+}
+html[data-theme="light"] .modal-box .item.highlight {
+  background: rgba(255, 236, 200, 0.55) !important;
+  border-color: rgba(220, 150, 40, 0.4) !important;
+}
+html[data-theme="light"] .modal-box .item label {
+  color: #6b5a40 !important;
+}
+html[data-theme="light"] .modal-box .item span {
+  color: #1a1208 !important;
+}
+html[data-theme="light"] .modal-box .item.highlight span {
+  color: #b45309 !important;
+}
+
 </style>
 </head>
 <body>
@@ -2334,7 +2359,6 @@ function generateMockData(cedula) {
       comisionTransportadora: Math.floor(Math.random() * 2000),
       flete,
       recaudo,
-      seguro: Math.floor(recaudo * 0.02),
       total: recaudo + flete,
       costoEnvio: flete, // mock: costo envío
       costoDevolucion: /devol/i.test(estadoFinal) ? 3500 : 0,
@@ -3237,7 +3261,6 @@ function showDetail(g) {
       item("Tipo Entrega", g.tipoEntrega),
       item("Costo Envío", money(getCostoEnvio(g)), { highlight: true }),
       item("Recaudo", money(g.recaudo), { highlight: true }),
-      item("Seguro", money(g.seguro)),
       item("Peso", (g.peso || 0) + " kg"),
     ].join("")),
     section("Destinatario", "fa-user", [
@@ -3285,7 +3308,6 @@ document.getElementById("btnExport").addEventListener("click", () => {
     Celular: g.celularDestino,
     Recaudo: g.recaudo,
     "Costo Envío": getCostoEnvio(g),
-    Seguro: g.seguro,
     "Tipo Pago": g.tipo,
     "Tipo Entrega": g.tipoEntrega,
     Peso: g.peso,
@@ -3341,7 +3363,6 @@ document.getElementById("btnEnviarEmail").addEventListener("click", () => {
     Celular: g.celularDestino,
     Recaudo: g.recaudo,
     "Costo Envío": getCostoEnvio(g),
-    Seguro: g.seguro,
     "Tipo Pago": g.tipo,
     "Tipo Entrega": g.tipoEntrega,
     Peso: g.peso,
