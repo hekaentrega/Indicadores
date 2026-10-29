@@ -2247,6 +2247,12 @@ const ESTADOS_OMITIR = [
   "ELIMINADA",
   "Enviado",
   "GENERADA",
+  "annulled", 
+  "progress_", 
+  "ANULADA",
+  "ANULADO",
+  "ANULADA_",
+  "ANULADO_",
   // --- Agregar más aquí cuando se necesite ---
 ];
 
@@ -2257,6 +2263,7 @@ const ESTADOS_ENTREGA_EXITOSA = [
   "ENTREGADA",
   "ENTREGADO_",
   "ENTREGADA_",
+  "ENTREGA DIGITALIZADA",
   // --- Agregar más variantes aquí ---
 ];
 
@@ -2267,6 +2274,8 @@ const ESTADOS_DEVUELTO = [
   "DEVUELTA",
   "DEVUELTO_",
   "DEVUELTA_",
+  "ENTREGADO A REMITENTE",
+  "CERRADO POR INCIDENCIA, VER CAUSA", 
   // --- Agregar más variantes aquí ---
 ];
 
@@ -2320,6 +2329,10 @@ function homologarEstado(raw) {
   const n = normalizarTextoEstado(raw);
   if (!n) return null;
   if (_omitirSet.has(n)) return null;
+
+  // Si contiene "ENTREGA DIGITALIZADA" (aunque tenga más texto después) → Entrega Exitosa
+  if (n.includes("ENTREGA DIGITALIZADA")) return "Entrega Exitosa";
+
   if (_exitoSet.has(n)) return "Entrega Exitosa";
   if (_devueltoSet.has(n)) return "Devuelto al Remitente";
   if (_oficinaSet.has(n)) return "Para Reclamar en Oficina";
@@ -2548,17 +2561,19 @@ const ROBOT_HAPPY = "https://i.imgur.com/vs5SDlc.png";   // robot feliz
 const ROBOT_SAD   = "https://i.imgur.com/L2bOzG8.png";     // robot triste / error
 
 let feedbackTimer = null;
-function showSearchFeedback(type, title, msg) {
+let feedbackPersistent = false;
+function showSearchFeedback(type, title, msg, options = {}) {
   const el = document.getElementById("searchFeedback");
   if (!el) return;
   if (feedbackTimer) clearTimeout(feedbackTimer);
+  feedbackPersistent = !!options.persistent;
 
   el.className = "search-feedback show " + type;
   const icon = type === "ok" ? "✓" : "✕";
   el.innerHTML = `
     <button type="button" class="fb-close" aria-label="Cerrar">×</button>
     <div class="fb-title"><span class="fb-icon">${icon}</span> ${title}</div>
-    <div>${msg}</div>
+    <div class="fb-msg">${msg}</div>
   `;
   const closeBtn = el.querySelector(".fb-close");
   if (closeBtn) closeBtn.onclick = () => hideSearchFeedback();
@@ -2579,7 +2594,17 @@ function showSearchFeedback(type, title, msg) {
     }
   }
 
-  feedbackTimer = setTimeout(() => hideSearchFeedback(), 5000);
+  // Si es persistente (verificando), no se cierra solo; después de 5s cambia el texto
+  if (feedbackPersistent) {
+    feedbackTimer = setTimeout(() => {
+      const msgEl = el.querySelector(".fb-msg");
+      const titleEl = el.querySelector(".fb-title");
+      if (msgEl) msgEl.textContent = "Aún estamos consultando los registros, por favor espera…";
+      if (titleEl) titleEl.innerHTML = `<span class="fb-icon">✓</span> Sigue verificando…`;
+    }, 5000);
+  } else {
+    feedbackTimer = setTimeout(() => hideSearchFeedback(), 5000);
+  }
 }
 function hideSearchFeedback() {
   if (feedbackTimer) { clearTimeout(feedbackTimer); feedbackTimer = null; }
@@ -2644,7 +2669,7 @@ function startSearch() {
   document.getElementById("filtroFin").value = fin;
 
   // Primero verificamos si la cédula existe (sin mostrar loading todavía)
-  showSearchFeedback("ok", "Verificando...", "Consultando si el documento existe en nuestros registros.");
+  showSearchFeedback("ok", "Verificando...", "Consultando si el documento existe en nuestros registros.", { persistent: true });
   
   fetch("https://hekaintranet.com/INDICADORES/dashboard_indicadores-cliente.php?cedula=" + encodeURIComponent(cedula) + "&fechaInicio=" + encodeURIComponent(inicio) + "&fechaFin=" + encodeURIComponent(fin))
     .then(r => r.json())
@@ -2680,6 +2705,10 @@ function onDataReceived(res) {
       g._dateStr = g._date ? g._date.toISOString().slice(0,10) : "";
       g.estadoOriginal = g.estado || "";
       g.estadoHomologado = homologarEstado(g.estado);
+      // Homologar transportadora a MAYÚSCULAS
+      if (g.transportadora) {
+        g.transportadora = String(g.transportadora).trim().toUpperCase();
+      }
       return g;
     }).filter(g => {
       // Omitir estados basura / vacíos
@@ -3018,13 +3047,23 @@ function renderCharts() {
   const guias = filteredGuias;
   
   // --- Transportadoras ---
+  const TRANS_COLORS = {
+    "INTERRAPIDISIMO": "#1e40af",  // azul rey
+    "SERVIENTREGA":    "#16a34a",  // verde
+    "HEKA":            "#d97706",  // amarillo quemado
+    "ENVIA":           "#e11d48",  // rojo rosado
+    "TCC":             "#dc2626"   // rojo puro
+  };
+  const FALLBACK_COLORS = ["#6366f1","#8b5cf6","#06b6d4","#f59e0b","#84cc16"];
+
   const transMap = {};
   guias.forEach(g => {
-    const t = g.transportadora || "Sin dato";
+    let t = (g.transportadora || "SIN DATO").trim().toUpperCase();
     transMap[t] = (transMap[t] || 0) + 1;
   });
   const transLabels = Object.keys(transMap).sort((a,b) => transMap[b] - transMap[a]);
   const transData = transLabels.map(l => transMap[l]);
+  const transColors = transLabels.map((l, i) => TRANS_COLORS[l] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]);
   
   charts.trans = new Chart(document.getElementById("chartTrans"), {
     type: "doughnut",
@@ -3032,7 +3071,7 @@ function renderCharts() {
       labels: transLabels,
       datasets: [{
         data: transData,
-        backgroundColor: ["#ffb020","#e8a838","#22ff88","#ff9f1c","#ff5078","#e89a20","#c47810"],
+        backgroundColor: transColors,
         borderWidth: 0,
         hoverOffset: 8
       }]
