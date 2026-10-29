@@ -2295,6 +2295,17 @@ const ESTADOS_RECLAMAR_OFICINA = [
   // --- Agregar más variantes aquí ---
 ];
 
+/** Variantes → "Para Reclamar en Oficina" (categoría propia, NO va en En Proceso) */
+const ESTADOS_RECLAMAR_OFICINA = [
+  "INDEMNIZADA_",
+  "INDEMNIZADO_",
+  "indemnizada_",
+  "indemnizado_",
+  "Indemnizada_",
+  "Indemnizado_", 
+  // --- Agregar más variantes aquí ---
+];   
+
 /** Normaliza para comparar (MAYÚSCULAS, sin tildes, sin _, espacios limpios) */
 function normalizarTextoEstado(raw) {
   if (raw == null) return "";
