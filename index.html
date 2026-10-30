@@ -2670,7 +2670,7 @@ function startSearch() {
   })
     .then(r => r.json())
     .then(login => {
-      if (!login || !login.ok || !login.token) {
+      if (!login || !login.ok) {
         showSearchFeedback("error", "Credenciales inválidas", login.error || "Usuario o clave incorrectos.");
         showToast("No se pudo autenticar", "error");
         return;
@@ -2680,8 +2680,7 @@ function startSearch() {
         showSearchFeedback("error", "Sin cédula", "El usuario no tiene cédula asociada en Heka.");
         return;
       }
-      // Guardar token por si se necesita después
-      window.hekaToken = login.token;
+      // Cédula obtenida (el token no se expone al frontend)
       window.hekaCedula = cedula;
 
       showSearchFeedback("ok", "Verificando...", "Usuario autenticado. Consultando indicadores...", { persistent: true });
