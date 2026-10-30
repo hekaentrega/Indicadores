@@ -2117,12 +2117,20 @@ html[data-theme="light"] .modal-box .item.highlight span {
           </div>
           <div class="score-form-fields">
             <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:14px">
-              Ingresa el <strong>celular del destinatario</strong> (quien recibe el envío).
-              Analizamos todo su historial de envíos para decirte si conviene despachar y por qué.
+              Para consultar el score, necesitamos tu <strong>nombre</strong> y tu <strong>celular</strong>.
+              Así validamos que eres tú antes de analizar al destinatario.
             </p>
             <div class="form-group">
+              <label>Tu nombre</label>
+              <input type="text" id="scoreNombre" placeholder="Ej: Juan Pérez" maxlength="60" />
+            </div>
+            <div class="form-group">
+              <label>Tu celular (10 dígitos)</label>
+              <input type="text" id="scoreCelular" placeholder="Ej: 3001234567" maxlength="10" inputmode="numeric" />
+            </div>
+            <div class="form-group">
               <label>Celular del destinatario</label>
-              <input type="text" id="scoreTelefono" placeholder="Ej: 3001234567" />
+              <input type="text" id="scoreTelefono" placeholder="Ej: 3001234567" maxlength="10" inputmode="numeric" />
             </div>
             <button class="btn-primary" id="btnCalcularScore" style="margin-top:16px">
               <i class="fas fa-bolt"></i> CALCULAR SCORE
@@ -3505,11 +3513,13 @@ function openScoreModal() {
   document.getElementById("scoreForm").style.display = "";
   document.getElementById("scoreResult").style.display = "none";
   document.getElementById("scoreResult").innerHTML = "";
+  document.getElementById("scoreNombre").value = "";
+  document.getElementById("scoreCelular").value = "";
   document.getElementById("scoreTelefono").value = "";
   document.getElementById("modalScore").querySelector(".modal-box").classList.remove("result-wide");
   if (typeof hideScoreFeedback === "function") hideScoreFeedback();
   document.getElementById("modalScore").classList.add("show");
-  setTimeout(() => document.getElementById("scoreTelefono").focus(), 200);
+  setTimeout(() => document.getElementById("scoreNombre").focus(), 200);
 }
 
 document.getElementById("btnScoreHome").addEventListener("click", openScoreModal);
@@ -3525,6 +3535,17 @@ document.getElementById("modalScore").addEventListener("click", e => {
 document.getElementById("btnCalcularScore").addEventListener("click", calcularScoreCliente);
 document.getElementById("scoreTelefono").addEventListener("keydown", e => {
   if (e.key === "Enter") calcularScoreCliente();
+});
+
+// Solo números y máximo 10 dígitos en celular propio
+document.getElementById("scoreCelular").addEventListener("input", e => {
+  e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
+});
+document.getElementById("scoreCelular").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("scoreTelefono").focus();
+});
+document.getElementById("scoreNombre").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("scoreCelular").focus();
 });
 
 function buildScoreFromGuias(guias, tel, nombreClientePref) {
@@ -3665,10 +3686,28 @@ function hideScoreFeedback() {
 }
 
 function calcularScoreCliente() {
+  const nombre = document.getElementById("scoreNombre").value.trim();
+  const celular = document.getElementById("scoreCelular").value.trim().replace(/\D/g, "");
   const tel = document.getElementById("scoreTelefono").value.trim();
 
+  // Validar nombre
+  if (!nombre || nombre.length < 3) {
+    showScoreFeedback("error", "Nombre requerido", "Ingresa tu nombre completo para continuar.");
+    document.getElementById("scoreNombre").focus();
+    return;
+  }
+
+  // Validar celular propio (10 dígitos Colombia)
+  if (celular.length !== 10) {
+    showScoreFeedback("error", "Celular inválido", "Tu celular debe tener exactamente 10 dígitos.");
+    document.getElementById("scoreCelular").focus();
+    return;
+  }
+
+  // Validar celular del destinatario
   if (!tel || tel.replace(/\D/g, "").length < 7) {
-    showScoreFeedback("error", "Teléfono inválido", "Ingresa un celular válido (mínimo 7 dígitos).");
+    showScoreFeedback("error", "Teléfono del destinatario", "Ingresa el celular del destinatario (mínimo 7 dígitos).");
+    document.getElementById("scoreTelefono").focus();
     return;
   }
 
@@ -3679,7 +3718,7 @@ function calcularScoreCliente() {
 
   const telNorm = tel.replace(/\D/g, "");
 
-  fetch("https://hekaintranet.com/INDICADORES/score_indicadores-cliente.php?telefono=" + encodeURIComponent(telNorm))
+  fetch("https://hekaintranet.com/INDICADORES/score_indicadores-cliente.php?telefono=" + encodeURIComponent(telNorm) + "&nombre=" + encodeURIComponent(nombre) + "&celular=" + encodeURIComponent(celular))
     .then(r => r.json())
     .then(data => {
       btn.disabled = false;
