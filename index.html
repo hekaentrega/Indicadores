@@ -1886,11 +1886,15 @@ html[data-theme="light"] .modal-box .item.highlight span {
     </div>
     <div class="search-card">
     <h1>HEKA ENTREGA</h1>
-    <p class="subtitle">Dashboard de Indicadores · Análisis Inteligente</p>
+    <p class="subtitle">Ingresa con tu usuario de Heka</p>
     
     <div class="form-group">
-      <label>Cédula / Documento / Guía</label>
-      <input type="text" id="inputCedula" placeholder="Ej: 74378064" value="" />
+      <label>Usuario</label>
+      <input type="text" id="inputUsuario" placeholder="Tu usuario de Heka" autocomplete="username" />
+    </div>
+    <div class="form-group">
+      <label>Clave</label>
+      <input type="password" id="inputClave" placeholder="Tu clave" autocomplete="current-password" />
     </div>
     <div class="form-group">
       <label>Fecha Inicio</label>
@@ -2247,12 +2251,6 @@ const ESTADOS_OMITIR = [
   "ELIMINADA",
   "Enviado",
   "GENERADA",
-  "annulled", 
-  "progress_", 
-  "ANULADA",
-  "ANULADO",
-  "ANULADA_",
-  "ANULADO_",
   // --- Agregar más aquí cuando se necesite ---
 ];
 
@@ -2274,8 +2272,6 @@ const ESTADOS_DEVUELTO = [
   "DEVUELTA",
   "DEVUELTO_",
   "DEVUELTA_",
-  "ENTREGADO A REMITENTE",
-  "CERRADO POR INCIDENCIA, VER CAUSA", 
   // --- Agregar más variantes aquí ---
 ];
 
@@ -2552,7 +2548,7 @@ function hideLoading(cb) {
    SEARCH
    ============================================================ */
 document.getElementById("btnBuscar").addEventListener("click", startSearch);
-document.getElementById("inputCedula").addEventListener("keydown", e => {
+document.getElementById("inputClave").addEventListener("keydown", e => {
   if (e.key === "Enter") startSearch();
 });
 
@@ -2622,19 +2618,20 @@ function hideSearchFeedback() {
 
 function startSearch() {
   hideSearchFeedback();
-  const cedula = document.getElementById("inputCedula").value.trim();
+  const usuario = document.getElementById("inputUsuario").value.trim();
+  const clave = document.getElementById("inputClave").value;
   const inicio = document.getElementById("inputInicio").value;
   const fin = document.getElementById("inputFin").value;
 
-  // Validaciones antes de mostrar loading
-  if (!cedula) {
-    showSearchFeedback("error", "Cédula requerida", "Ingresa una cédula, documento o guía para continuar.");
-    showToast("Ingresa una cédula o documento", "warn");
+  // Validaciones
+  if (!usuario) {
+    showSearchFeedback("error", "Usuario requerido", "Ingresa tu usuario de Heka.");
+    showToast("Ingresa tu usuario", "warn");
     return;
   }
-  if (!/^\d{5,15}$/.test(cedula.replace(/\D/g, ""))) {
-    showSearchFeedback("error", "Cédula inválida", "La cédula debe tener entre 5 y 15 dígitos.");
-    showToast("Cédula inválida", "warn");
+  if (!clave) {
+    showSearchFeedback("error", "Clave requerida", "Ingresa tu clave.");
+    showToast("Ingresa tu clave", "warn");
     return;
   }
   if (!inicio || !fin) {
@@ -2659,33 +2656,52 @@ function startSearch() {
     return;
   }
   
-  if (!cedula || !inicio || !fin) {
-    showToast("Completa cédula e intervalo de fechas", "warn");
-    return;
-  }
-  
   // Sync filter dates
   document.getElementById("filtroInicio").value = inicio;
   document.getElementById("filtroFin").value = fin;
 
-  // Primero verificamos si la cédula existe (sin mostrar loading todavía)
-  showSearchFeedback("ok", "Verificando...", "Consultando si el documento existe en nuestros registros.", { persistent: true });
-  
-  fetch("https://hekaintranet.com/INDICADORES/dashboard_indicadores-cliente.php?cedula=" + encodeURIComponent(cedula) + "&fechaInicio=" + encodeURIComponent(inicio) + "&fechaFin=" + encodeURIComponent(fin))
+  // 1. Login en Heka para obtener token + cédula
+  showSearchFeedback("ok", "Autenticando...", "Validando usuario y clave en Heka.", { persistent: true });
+
+  fetch("https://hekaintranet.com/INDICADORES/login_indicadores-cliente.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ usuario, clave })
+  })
     .then(r => r.json())
-    .then(data => {
-      if (!data || !data.ok || !data.guias || data.guias.length === 0) {
-        showSearchFeedback("error", "Documento no encontrado", "La cédula o guía ingresada no se encuentra en nuestros registros. Verifica que el número sea correcto e intenta nuevamente.");
-        showToast("Documento no encontrado", "warn");
+    .then(login => {
+      if (!login || !login.ok || !login.token) {
+        showSearchFeedback("error", "Credenciales inválidas", login.error || "Usuario o clave incorrectos.");
+        showToast("No se pudo autenticar", "error");
         return;
       }
-      // Existe → ahora sí mostramos loading y procesamos
-      document.getElementById("searchOverlay").classList.add("hidden");
-      showLoading();
-      onDataReceived(data);
+      const cedula = login.cedula;
+      if (!cedula) {
+        showSearchFeedback("error", "Sin cédula", "El usuario no tiene cédula asociada en Heka.");
+        return;
+      }
+      // Guardar token por si se necesita después
+      window.hekaToken = login.token;
+      window.hekaCedula = cedula;
+
+      showSearchFeedback("ok", "Verificando...", "Usuario autenticado. Consultando indicadores...", { persistent: true });
+
+      // 2. Con la cédula, traer el dashboard (igual que antes)
+      return fetch("https://hekaintranet.com/INDICADORES/dashboard_indicadores-cliente.php?cedula=" + encodeURIComponent(cedula) + "&fechaInicio=" + encodeURIComponent(inicio) + "&fechaFin=" + encodeURIComponent(fin))
+        .then(r => r.json())
+        .then(data => {
+          if (!data || !data.ok || !data.guias || data.guias.length === 0) {
+            showSearchFeedback("error", "Sin datos", "No se encontraron envíos para esta cédula en el rango de fechas.");
+            showToast("Sin datos para el periodo", "warn");
+            return;
+          }
+          document.getElementById("searchOverlay").classList.add("hidden");
+          showLoading();
+          onDataReceived(data);
+        });
     })
     .catch(err => {
-      showSearchFeedback("error", "Error de conexión", "No se pudo verificar el documento. Intenta de nuevo.");
+      showSearchFeedback("error", "Error de conexión", "No se pudo conectar con Heka. Intenta de nuevo.");
       showToast("Error de conexión", "error");
     });
 }
