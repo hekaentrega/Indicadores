@@ -2116,7 +2116,7 @@ html[data-theme="light"] .modal-box .item.highlight span {
             <div class="search-feedback" id="scoreFeedback"></div>
           </div>
           <div class="score-form-fields">
-            <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:14px">
+            <p id="scoreIntroText" style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:14px">
               Para consultar el score, necesitamos tu <strong>nombre</strong> y tu <strong>celular</strong>.
               Así validamos que eres tú antes de analizar al destinatario.
             </p>
@@ -3515,6 +3515,9 @@ function openScoreModal() {
   const isLogged = window.hekaCedula && window.hekaNombre;
   document.getElementById("scoreNombreGroup").style.display = isLogged ? "none" : "block";
   document.getElementById("scoreCelularGroup").style.display = isLogged ? "none" : "block";
+  document.getElementById("scoreIntroText").innerHTML = isLogged
+    ? "Ingresa el <strong>celular del destinatario</strong> para consultar su score. Tu información se registra automáticamente."
+    : "Para consultar el score, necesitamos tu <strong>nombre</strong> y tu <strong>celular</strong>. Así validamos que eres tú antes de analizar al destinatario.";
   if (isLogged) {
     document.getElementById("scoreNombre").value = window.hekaNombre;
     if (window.hekaTelefono) {
