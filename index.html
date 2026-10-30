@@ -2120,16 +2120,16 @@ html[data-theme="light"] .modal-box .item.highlight span {
               Para consultar el score, necesitamos tu <strong>nombre</strong> y tu <strong>celular</strong>.
               Así validamos que eres tú antes de analizar al destinatario.
             </p>
-            <div class="form-group">
+            <div class="form-group" id="scoreNombreGroup">
               <label>Tu nombre</label>
               <input type="text" id="scoreNombre" placeholder="Ej: Juan Pérez" maxlength="60" />
             </div>
-            <div class="form-group">
+            <div class="form-group" id="scoreCelularGroup">
               <label>Tu celular (10 dígitos)</label>
               <input type="text" id="scoreCelular" placeholder="Ej: 3001234567" maxlength="10" inputmode="numeric" />
             </div>
             <div class="form-group">
-              <label>Celular del destinatario</label>
+              <label>Celular del destinatario a consultar</label>
               <input type="text" id="scoreTelefono" placeholder="Ej: 3001234567" maxlength="10" inputmode="numeric" />
             </div>
             <button class="btn-primary" id="btnCalcularScore" style="margin-top:16px">
@@ -2690,6 +2690,8 @@ function startSearch() {
       }
       // Cédula obtenida (el token no se expone al frontend)
       window.hekaCedula = cedula;
+      window.hekaNombre = login.nombre || "";
+      window.hekaTelefono = login.telefono || "";
 
       showSearchFeedback("ok", "Verificando...", "Usuario autenticado. Consultando indicadores...", { persistent: true });
 
@@ -3510,6 +3512,15 @@ document.getElementById("btnNueva").addEventListener("click", () => {
    SCORE DEL CLIENTE
    ============================================================ */
 function openScoreModal() {
+  const isLogged = window.hekaCedula && window.hekaNombre;
+  document.getElementById("scoreNombreGroup").style.display = isLogged ? "none" : "block";
+  document.getElementById("scoreCelularGroup").style.display = isLogged ? "none" : "block";
+  if (isLogged) {
+    document.getElementById("scoreNombre").value = window.hekaNombre;
+    if (window.hekaTelefono) {
+      document.getElementById("scoreCelular").value = String(window.hekaTelefono).replace(/\D/g, "").slice(0, 10);
+    }
+  }
   document.getElementById("scoreForm").style.display = "";
   document.getElementById("scoreResult").style.display = "none";
   document.getElementById("scoreResult").innerHTML = "";
@@ -3690,18 +3701,27 @@ function calcularScoreCliente() {
   const celular = document.getElementById("scoreCelular").value.trim().replace(/\D/g, "");
   const tel = document.getElementById("scoreTelefono").value.trim();
 
-  // Validar nombre
-  if (!nombre || nombre.length < 3) {
-    showScoreFeedback("error", "Nombre requerido", "Ingresa tu nombre completo para continuar.");
-    document.getElementById("scoreNombre").focus();
-    return;
-  }
+  const isLogged = window.hekaCedula && window.hekaNombre;
 
-  // Validar celular propio (10 dígitos Colombia)
-  if (celular.length !== 10) {
-    showScoreFeedback("error", "Celular inválido", "Tu celular debe tener exactamente 10 dígitos.");
-    document.getElementById("scoreCelular").focus();
-    return;
+  // Si no está logueado, validar nombre y celular
+  if (!isLogged) {
+    if (!nombre || nombre.length < 3) {
+      showScoreFeedback("error", "Nombre requerido", "Ingresa tu nombre completo para continuar.");
+      document.getElementById("scoreNombre").focus();
+      return;
+    }
+    if (celular.length !== 10) {
+      showScoreFeedback("error", "Celular inválido", "Tu celular debe tener exactamente 10 dígitos.");
+      document.getElementById("scoreCelular").focus();
+      return;
+    }
+    // No permitir que tu celular sea igual al del destinatario
+    const telDest = tel.replace(/\D/g, "");
+    if (celular === telDest) {
+      showScoreFeedback("error", "Números iguales", "Tu celular y el del destinatario no pueden ser el mismo.");
+      document.getElementById("scoreTelefono").focus();
+      return;
+    }
   }
 
   // Validar celular del destinatario
