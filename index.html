@@ -3721,7 +3721,6 @@ function calcularScoreCliente() {
 
   const isLogged = window.hekaCedula && window.hekaNombre;
 
-  // Si no está logueado, validar nombre y celular
   if (!isLogged) {
     if (!nombre || nombre.length < 3) {
       showScoreFeedback("error", "Nombre requerido", "Ingresa tu nombre completo para continuar.");
@@ -3741,7 +3740,6 @@ function calcularScoreCliente() {
     }
   }
 
-  // Validar celular del destinatario
   if (!tel || tel.replace(/\D/g, "").length < 7) {
     showScoreFeedback("error", "Teléfono del destinatario", "Ingresa el celular del destinatario (mínimo 7 dígitos).");
     document.getElementById("scoreTelefono").focus();
@@ -3766,7 +3764,6 @@ function calcularScoreCliente() {
         return;
       }
 
-      // Si no hay envíos concluidos
       if (!data.totalEnvios || data.totalEnvios === 0) {
         showScoreFeedback("error", "Sin historial", "No se encontraron entregas ni devoluciones para este teléfono. Verifica el número e intenta de nuevo.");
         return;
@@ -3774,7 +3771,7 @@ function calcularScoreCliente() {
 
       showScoreFeedback("ok", "¡Cliente encontrado!", "Historial localizado. Mostrando análisis de score…");
       setTimeout(() => {
-        renderScoreResult(data);   // Ahora usa directamente la respuesta del servidor
+        renderScoreResult(data);
         hideScoreFeedback();
       }, 700);
     })
