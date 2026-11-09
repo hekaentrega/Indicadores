@@ -3733,7 +3733,6 @@ function calcularScoreCliente() {
       document.getElementById("scoreCelular").focus();
       return;
     }
-    // No permitir que tu celular sea igual al del destinatario
     const telDest = tel.replace(/\D/g, "");
     if (celular === telDest) {
       showScoreFeedback("error", "Números iguales", "Tu celular y el del destinatario no pueden ser el mismo.");
@@ -3767,17 +3766,17 @@ function calcularScoreCliente() {
         return;
       }
 
-      if (!data.guias || data.guias.length === 0) {
-        showScoreFeedback("error", "Sin historial", "No se encontraron envíos para este teléfono. Verifica el número e intenta de nuevo.");
+      // Si no hay envíos concluidos
+      if (!data.totalEnvios || data.totalEnvios === 0) {
+        showScoreFeedback("error", "Sin historial", "No se encontraron entregas ni devoluciones para este teléfono. Verifica el número e intenta de nuevo.");
         return;
       }
 
       showScoreFeedback("ok", "¡Cliente encontrado!", "Historial localizado. Mostrando análisis de score…");
       setTimeout(() => {
-        const scoreRes = buildScoreFromGuias(data.guias, data.telefono || tel, data.nombreCliente || "");
-        renderScoreResult(scoreRes);
+        renderScoreResult(data);   // Ahora usa directamente la respuesta del servidor
         hideScoreFeedback();
-      }, 900);
+      }, 700);
     })
     .catch(err => {
       btn.disabled = false;
