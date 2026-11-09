@@ -2254,11 +2254,18 @@ let currentCentro = "";
    ============================================================ */
 
 /** Estados que se ELIMINAN / OCULTAN completamente */
+/** Estados que se ELIMINAN / OCULTAN completamente */
 const ESTADOS_OMITIR = [
   "Documento Anulado",
   "ELIMINADA",
   "Enviado",
   "GENERADA",
+  "annulled", 
+  "progress_", 
+  "ANULADA",
+  "ANULADO",
+  "ANULADA_",
+  "ANULADO_",
   // --- Agregar más aquí cuando se necesite ---
 ];
 
@@ -2280,6 +2287,8 @@ const ESTADOS_DEVUELTO = [
   "DEVUELTA",
   "DEVUELTO_",
   "DEVUELTA_",
+  "ENTREGADO A REMITENTE",
+  "CERRADO POR INCIDENCIA, VER CAUSA", 
   // --- Agregar más variantes aquí ---
 ];
 
@@ -3565,8 +3574,9 @@ document.getElementById("scoreNombre").addEventListener("keydown", e => {
 function buildScoreFromGuias(guias, tel, nombreClientePref) {
   let exitosas = 0, devueltas = 0, enProceso = 0, oficina = 0, indemnizacion = 0;
   const nombres = {};
+
   (guias || []).forEach(g => {
-    const h = homologarEstado(g.estado); // mismas listas ESTADOS_* del index
+    const h = homologarEstado(g.estado);
     if (h === null) return;
     if (h === "Entrega Exitosa") exitosas++;
     else if (h === "Devuelto al Remitente") devueltas++;
@@ -3577,59 +3587,60 @@ function buildScoreFromGuias(guias, tel, nombreClientePref) {
     if (n) nombres[n] = (nombres[n] || 0) + 1;
   });
 
-  const total = exitosas + devueltas + enProceso + oficina + indemnizacion;
-  const tasaExito = total ? (exitosas / total) * 100 : 0;
-  const tasaDev = total ? (devueltas / total) * 100 : 0;
+  // Solo contamos exitosas + devoluciones para el score
+  const totalRelevante = exitosas + devueltas;
+  const tasaExito = totalRelevante ? (exitosas / totalRelevante) * 100 : 0;
+  const tasaDev = totalRelevante ? (devueltas / totalRelevante) * 100 : 0;
 
   let score = 0;
-  if (total > 0) {
-    const volBonus = Math.min(10, total * 0.4);
-    score = (tasaExito * 0.70) + ((100 - tasaDev) * 0.20) + volBonus * 0.5;
-    if (tasaDev >= 40) score -= 15;
-    else if (tasaDev >= 25) score -= 8;
-    if (tasaExito >= 85 && total >= 5) score += 5;
+  if (totalRelevante > 0) {
+    const volBonus = Math.min(12, totalRelevante * 0.5);
+    score = (tasaExito * 0.72) + ((100 - tasaDev) * 0.22) + volBonus * 0.4;
+    if (tasaDev >= 45) score -= 18;
+    else if (tasaDev >= 30) score -= 10;
+    else if (tasaDev >= 20) score -= 5;
+    if (tasaExito >= 88 && totalRelevante >= 4) score += 6;
     score = Math.max(0, Math.min(100, score));
   }
 
-  let nivel = "Sin datos", color = "#94a3b8", decision = "SIN DATOS";
-  let recomendacion = "No encontramos envíos previos a este número. Es un destinatario nuevo: conviene confirmar teléfono, dirección y disponibilidad antes del primer envío.";
+  let nivel = "Sin historial", color = "#94a3b8", decision = "SIN DATOS";
+  let recomendacion = "No encontramos entregas ni devoluciones previas con este número. Es un destinatario sin historial registrado: te recomendamos confirmar teléfono, dirección y disponibilidad antes del primer envío.";
 
   const te = Math.round(tasaExito * 10) / 10;
   const td = Math.round(tasaDev * 10) / 10;
 
-  if (total > 0) {
-    if (score >= 85) {
+  if (totalRelevante > 0) {
+    if (score >= 88) {
       nivel = "Excelente"; color = "#22ff88"; decision = "SÍ ENVIAR";
-      recomendacion = "Buena opción para enviar. De " + total + " envíos a este destinatario, " + exitosas + " fueron exitosos (" + te + "%). " +
-        (devueltas > 0 ? "Solo " + devueltas + " devolución(es) (" + td + "%). " : "Sin devoluciones registradas. ") +
-        "Historial sólido: puedes despachar con confianza, incluso contraentrega.";
-    } else if (score >= 70) {
+      recomendacion = "Grandes posibilidades de entrega exitosa. De " + totalRelevante + " envíos concluidos, " + exitosas + " fueron exitosos (" + te + "%). " +
+        (devueltas > 0 ? "Solo " + devueltas + " devolución(es). " : "Sin devoluciones registradas. ") +
+        "El historial disponible es muy sólido. Puedes despachar con confianza (incluso contraentrega), siempre validando dirección y contacto.";
+    } else if (score >= 72) {
       nivel = "Bueno"; color = "#a3e635"; decision = "SÍ ENVIAR";
-      recomendacion = "Conviene enviar. Historial positivo: " + exitosas + " entregas exitosas de " + total + " (" + te + "%). " +
-        (devueltas > 0 ? "Hay " + devueltas + " devolución(es); no es alarmante, pero revisa que la dirección esté actualizada. " : "") +
-        "Recomendación: enviar con normalidad.";
-    } else if (score >= 50) {
+      recomendacion = "Buenas posibilidades de entrega exitosa. Historial positivo: " + exitosas + " entregas exitosas de " + totalRelevante + " (" + te + "%). " +
+        (devueltas > 0 ? "Hay " + devueltas + " devolución(es); no es preocupante, pero confirma que la dirección esté actualizada. " : "") +
+        "Recomendamos enviar con normalidad.";
+    } else if (score >= 52) {
       nivel = "Regular"; color = "#ffb020"; decision = "ENVIAR CON PRECAUCIÓN";
-      recomendacion = "Opción intermedia. De " + total + " envíos, " + exitosas + " exitosos (" + te + "%) y " + devueltas + " devoluciones (" + td + "%). " +
-        "Sí puedes enviar, pero confirma el pedido por WhatsApp o llamada, valida la dirección y " +
-        (td >= 20 ? "evalúa no usar solo contraentrega. " : "mantén seguimiento cercano. ") +
-        (enProceso > 0 ? "Tiene " + enProceso + " envío(s) aún en proceso. " : "");
-    } else if (score >= 30) {
+      recomendacion = "Posibilidades moderadas. De " + totalRelevante + " envíos concluidos, " + exitosas + " exitosos (" + te + "%) y " + devueltas + " devoluciones (" + td + "%). " +
+        "Sí puedes enviar, pero confirma el pedido por WhatsApp o llamada y verifica la dirección. " +
+        (td >= 25 ? "Evalúa evitar solo contraentrega. " : "Mantén seguimiento cercano. ");
+    } else if (score >= 32) {
       nivel = "Riesgo"; color = "#ff9f1c"; decision = "NO RECOMENDADO";
-      recomendacion = "No es buena opción enviar sin validar. Tasa de devolución " + td + "% (" + devueltas + " de " + total +
-        ") y solo " + te + "% de éxitos. Si decides enviar: confirma con el destinatario, exige pago anticipado o evita contraentrega, y verifica que la dirección y el celular sigan vigentes.";
+      recomendacion = "Bajas posibilidades de entrega exitosa. Tasa de devolución del " + td + "% (" + devueltas + " de " + totalRelevante +
+        ") y solo " + te + "% de éxitos. Si decides enviar: confirma con el destinatario, exige pago anticipado o evita contraentrega y verifica que dirección y celular sigan vigentes.";
     } else {
       nivel = "Alto riesgo"; color = "#ff5078"; decision = "NO ENVIAR";
-      recomendacion = "No conviene enviar a este número con las condiciones actuales. De " + total + " envíos, " + devueltas +
+      recomendacion = "Muy bajas posibilidades de entrega exitosa. De " + totalRelevante + " envíos concluidos, " + devueltas +
         " terminaron en devolución (" + td + "%) y apenas " + exitosas + " fueron exitosos. Alto riesgo de pérdida de flete y mercancía. Mejor no despachar hasta confirmar identidad, dirección y forma de pago segura (preferible anticipado).";
     }
-    if (total === 1) {
-      decision = score >= 50 ? "ENVIAR CON PRECAUCIÓN" : decision;
-      recomendacion = "Solo hay 1 envío previo a este destinatario. La muestra es muy pequeña para asegurar un patrón. " +
+
+    if (totalRelevante === 1) {
+      recomendacion = "Solo hay 1 envío concluido con este destinatario. La muestra es muy pequeña. " +
         (exitosas === 1 ? "Ese envío fue exitoso, pero conviene confirmar datos antes de repetir. " :
-          devueltas === 1 ? "Ese único envío fue devolución: valida bien antes de volver a enviar. " : "Ese envío sigue en proceso. ") + recomendacion;
-    } else if (total === 2) {
-      recomendacion = "Solo 2 envíos en el historial: úsalo como referencia, no como certeza total. " + recomendacion;
+         "Ese único envío fue una devolución: valida bien antes de volver a enviar. ") + recomendacion;
+    } else if (totalRelevante === 2) {
+      recomendacion = "Solo 2 envíos concluidos en el historial: úsalo como referencia, no como certeza. " + recomendacion;
     }
   }
 
@@ -3639,17 +3650,21 @@ function buildScoreFromGuias(guias, tel, nombreClientePref) {
     ok: true,
     telefono: tel,
     nombreCliente: nombreClientePref || (nombreTop ? nombreTop[0] : ""),
-    periodoLabel: "Todo el historial disponible",
-    totalEnvios: total,
-    exitosas, devueltas, enProceso, oficina,
+    periodoLabel: "Historial disponible",
+    totalEnvios: totalRelevante,          // solo exitosas + devueltas
+    exitosas,
+    devueltas,
+    enProceso,                            // se muestra informativo, no afecta score
+    oficina,
     tasaExito: te,
     tasaDev: td,
     score: Math.round(score * 10) / 10,
-    nivel, color, decision,
+    nivel,
+    color,
+    decision,
     recomendacion
   };
 }
-
 
 let scoreFeedbackTimer = null;
 function showScoreFeedback(type, title, msg) {
@@ -3782,7 +3797,7 @@ function renderScoreResult(res) {
   const el = document.getElementById("scoreResult");
   el.style.display = "";
 
-  const circ = 2 * Math.PI * 54; // r=54
+  const circ = 2 * Math.PI * 54;
   const offset = circ * (1 - (res.score || 0) / 100);
 
   el.innerHTML = `
@@ -3793,7 +3808,7 @@ function renderScoreResult(res) {
             ${res.nombreCliente ? res.nombreCliente : "Cliente"} · ${res.telefono}
           </div>
           <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">
-            ${res.periodoLabel || "Todo el historial disponible"}
+            ${res.periodoLabel || "Historial disponible"}
           </div>
         </div>
 
@@ -3822,7 +3837,7 @@ function renderScoreResult(res) {
         <div class="score-stats">
           <div class="score-stat">
             <div class="num">${res.totalEnvios}</div>
-            <div class="lbl">Envíos</div>
+            <div class="lbl">Envíos concluidos</div>
           </div>
           <div class="score-stat">
             <div class="num" style="color:#22ff88">${res.exitosas}</div>
@@ -3838,7 +3853,7 @@ function renderScoreResult(res) {
           </div>
         </div>
 
-        ${res.oficina ? `<div style="font-size:0.78rem;color:var(--text-muted)">
+        ${res.oficina ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:6px">
           Para reclamar en oficina: <strong style="color:#ff9f1c">${res.oficina}</strong>
         </div>` : ""}
 
@@ -3847,7 +3862,11 @@ function renderScoreResult(res) {
           ${res.recomendacion}
         </div>
 
-        <button class="btn-score" id="btnScoreOtra" type="button" style="align-self:flex-start">
+        <div style="font-size:0.72rem;color:var(--text-muted);margin:10px 0 4px;line-height:1.4;font-style:italic;">
+          Análisis basado en el historial de entregas y devoluciones disponible en nuestros registros. No constituye una garantía.
+        </div>
+
+        <button class="btn-score" id="btnScoreOtra" type="button" style="align-self:flex-start;margin-top:6px">
           <i class="fas fa-search"></i> Consultar otro teléfono
         </button>
       </div>
