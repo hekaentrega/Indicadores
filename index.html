@@ -2679,7 +2679,6 @@ function startSearch() {
 
   // 1. Login en Heka para obtener token + cédula
   showSearchFeedback("ok", "Autenticando...", "Validando usuario y clave en Heka.", { persistent: true });
-
   fetch("https://hekaintranet.com/INDICADORES/login_indicadores-cliente.php", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -2697,15 +2696,21 @@ function startSearch() {
         showSearchFeedback("error", "Sin cédula", "El usuario no tiene cédula asociada en Heka.");
         return;
       }
-      // Cédula obtenida (el token no se expone al frontend)
+
+      // Guardar datos de sesión
       window.hekaCedula = cedula;
       window.hekaNombre = login.nombre || "";
       window.hekaTelefono = login.telefono || "";
+      window.hekaSessionToken = login.sessionToken || "";
 
       showSearchFeedback("ok", "Verificando...", "Usuario autenticado. Consultando indicadores...", { persistent: true });
 
-      // 2. Con la cédula, traer el dashboard (igual que antes)
-      return fetch("https://hekaintranet.com/INDICADORES/dashboard_indicadores-cliente.php?cedula=" + encodeURIComponent(cedula) + "&fechaInicio=" + encodeURIComponent(inicio) + "&fechaFin=" + encodeURIComponent(fin))
+      // 2. Con la cédula + token, traer el dashboard
+      return fetch("https://hekaintranet.com/INDICADORES/dashboard_indicadores-cliente.php?cedula=" + encodeURIComponent(cedula) + "&fechaInicio=" + encodeURIComponent(inicio) + "&fechaFin=" + encodeURIComponent(fin), {
+        headers: {
+          'X-Session-Token': window.hekaSessionToken
+        }
+      })
         .then(r => r.json())
         .then(data => {
           if (!data || !data.ok || !data.guias || data.guias.length === 0) {
