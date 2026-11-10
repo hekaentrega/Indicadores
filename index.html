@@ -2150,6 +2150,17 @@ html[data-theme="light"] .modal-box .item.highlight span {
 <div class="toast" id="toast"></div>
 
 <script>
+
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+   
 /* ============================================================
    CONSTELLATION STARFIELD
    ============================================================ */
@@ -3296,21 +3307,20 @@ function renderTable() {
     else if (g.estado === "Indemnización") badgeClass = "badge-purple";
     else if (g.estado === "En Proceso") badgeClass = "badge-info";
     
-    // En Proceso muestra el original
     const labelEstado = g.estado === "En Proceso" && g.estadoOriginal
       ? `${g.estado} · ${g.estadoOriginal}`
       : (g.estado || "—");
     
     return `
       <tr data-idx="${idx}">
-        <td style="color:var(--neon-cyan);font-weight:500">${g.guiaTransportadora || "—"}</td>
-        <td>${g.fecha || "—"}</td>
-        <td><span class="badge ${badgeClass}" title="${g.estadoOriginal || ''}">${labelEstado}</span></td>
-        <td>${g.transportadora || "—"}</td>
-        <td>${g.ciudadDestino || "—"}</td>
+        <td style="color:var(--neon-cyan);font-weight:500">${esc(g.guiaTransportadora || "—")}</td>
+        <td>${esc(g.fecha || "—")}</td>
+        <td><span class="badge ${badgeClass}" title="${esc(g.estadoOriginal || '')}">${esc(labelEstado)}</span></td>
+        <td>${esc(g.transportadora || "—")}</td>
+        <td>${esc(g.ciudadDestino || "—")}</td>
         <td>$${(Number(g.recaudo)||0).toLocaleString("es-CO")}</td>
         <td>$${getCostoEnvio(g).toLocaleString("es-CO")}</td>
-        <td>${g.tipo || "—"}</td>
+        <td>${esc(g.tipo || "—")}</td>
       </tr>
     `;
   }).join("");
@@ -3345,11 +3355,11 @@ function showDetail(g) {
   const money = n => "$" + (Number(n) || 0).toLocaleString("es-CO");
   const item = (l, v, opts = {}) => {
     const cls = ["item", opts.full ? "full" : "", opts.highlight ? "highlight" : ""].filter(Boolean).join(" ");
-    return `<div class="${cls}"><label>${l}</label><span>${v || "—"}</span></div>`;
+    return `<div class="${cls}"><label>${esc(l)}</label><span>${esc(v || "—")}</span></div>`;
   };
   const section = (title, icon, html) => `
     <div class="modal-section">
-      <div class="modal-section-title"><i class="fas ${icon}"></i> ${title}</div>
+      <div class="modal-section-title"><i class="fas ${icon}"></i> ${esc(title)}</div>
       <div class="grid">${html}</div>
     </div>`;
 
